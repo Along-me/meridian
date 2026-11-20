@@ -15,6 +15,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: ./.github/scripts/verify-version.ps1
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop/make-icons.ps1
       - run: npm test
       - run: npm run test:desktop

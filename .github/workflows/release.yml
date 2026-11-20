@@ -16,9 +16,7 @@ jobs:
       - name: Verify version tag
         shell: pwsh
         run: |
-          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          $lockVersion = (Get-Content package-lock.json -Raw | ConvertFrom-Json).version
-          if ($env:GITHUB_REF_NAME -ne "v$version" -or $lockVersion -ne $version -or $version -notmatch '^\d+\.\d+\.\d+$') { throw 'Tag and package versions must match a stable version.' }
+          ./.github/scripts/verify-version.ps1 -Tag $env:GITHUB_REF_NAME
       - run: npm ci
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop/make-icons.ps1
       - run: npm test
@@ -31,6 +29,11 @@ jobs:
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           $installer = "release/Meridian-Setup-$version-x64.exe"
+          $existing = gh release view $env:GITHUB_REF_NAME --json isDraft --jq '.isDraft' 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            if ($existing -eq 'false') { Write-Output 'This version is already published; keeping existing assets.'; exit 0 }
+            throw 'A draft already exists. Review it before publishing; assets will not be overwritten.'
+          }
           gh release create $env:GITHUB_REF_NAME --verify-tag --draft --title "Meridian $version" --generate-notes $installer "$installer.blockmap" release/latest.yml
           if ($LASTEXITCODE -ne 0) { throw 'Release upload failed.' }
           gh release edit $env:GITHUB_REF_NAME --draft=false --latest
