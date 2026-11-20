@@ -1,0 +1,14 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync(require('node:path').join(__dirname,'comparison-tools.js'),'utf8');
+const core=source.split('/* COMPARISON_CORE_START */')[1].split('/* COMPARISON_CORE_END */')[0];
+const api=vm.runInNewContext(core+';({comparisonHourInstants,customComparisonRows,comparisonDuration})',{Date,Number,Math,Error});
+const hours=api.comparisonHourInstants(new Date('2026-11-12T03:47:59.123Z'));
+assert.equal(hours.length,24);assert.equal(hours[0],Date.parse('2026-11-12T03:00:00Z'));assert.equal(hours[23]-hours[0],23*3600000);
+const game=api.customComparisonRows(1,'hour',1,'day');assert.equal(game.rows.length,24);assert.equal(game.rows[1].seconds,150);assert.equal(game.rows[23].seconds,3450);assert.equal(game.secondsPerDay,3600);
+assert.equal(api.comparisonDuration(game.rows[1].seconds),'00:02:30');assert.equal(api.comparisonDuration(game.secondsPerDay),'01:00:00');
+assert.equal(api.customComparisonRows(2,'hour',2,'day').rows[1].seconds,150);assert.equal(api.customComparisonRows(60,'second',1,'hour').rows[1].seconds,60);
+assert.equal(api.customComparisonRows(1,'minute',1,'day').rows[1].seconds,3);
+assert.throws(()=>api.customComparisonRows(0,'hour',1,'day'));assert.throws(()=>api.customComparisonRows(1,'hour',NaN,'day'));assert.throws(()=>api.customComparisonRows(1,'invalid',1,'day'));
+const offsetAt=(instant,zone)=>new Intl.DateTimeFormat('en-GB',{timeZone:zone,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(instant);
+assert.equal(offsetAt(hours[0],'Asia/Shanghai'),'11:00');assert.equal(offsetAt(hours[0],'Asia/Kathmandu'),'08:45');
+console.log('24 hourly instants, fractional offsets, custom duration ratios, second rounding and invalid inputs passed.');

@@ -1,0 +1,37 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),Core=require('./currency-core.js'),Reference=require('./currency-reference.js');
+const allowed=new Set(Object.keys(Reference.currencies)),now='2026-11-19';
+const fallback=Core.normalizeSnapshot({...Reference.fallback,date:Reference.asOf},{allowed,origin:'builtin',allowFuture:true});
+function snapshot(date,rates={CNY:7.2,EUR:.9}){return Core.normalizeSnapshot({base:'USD',date,rates,fetchedAt:date+'T10:00:00Z'},{allowed,now,origin:'online'})}
+const today=snapshot(now),yesterday=snapshot('2026-11-18'),tenDays=snapshot('2026-11-09'),elevenDays=snapshot('2026-11-08');
+const choose=(cache,extra={})=>Core.selectRate({from:'CNY',to:'USD',cache,fallback,now,...extra});
+assert.equal(choose([yesterday,today]).kind,'today');assert.equal(choose([yesterday]).kind,'recent');assert.equal(choose([tenDays]).kind,'recent');assert.equal(choose([elevenDays]).kind,'builtin');assert.equal(choose([]).kind,'builtin');
+const cachedInfo=Core.provenance(choose([today]),{now});assert.match(cachedInfo.label,/命中.*缓存/);assert.equal(cachedInfo.network,false);
+const liveInfo=Core.provenance(choose([yesterday]),{now,freshKeys:new Set([Core.snapshotKey(yesterday)])});assert.equal(liveInfo.label,'本次联网获取');assert.equal(liveInfo.network,true);assert.equal(liveInfo.observedToday,false,'A freshly fetched previous-day observation must keep its real rate date');
+assert.match(Core.provenance(choose([]),{now}).label,/内置兜底 · \d{4}-\d{2}-\d{2}/);
+const recentExport=Core.recentSnapshots([today,tenDays,elevenDays],now);assert.equal(recentExport.length,2);assert.equal(recentExport[1].date,'2026-11-09');
+const mixedCache={...today,rates:{USD:1,CNY:7.2,EUR:.9},dates:{USD:now,CNY:now,EUR:'2026-11-08'}};
+const filtered=Core.recentSnapshots([mixedCache],now);assert.equal(Object.hasOwn(filtered[0].rates,'EUR'),false);assert.equal(filtered[0].rates.CNY,7.2);assert.equal(mixedCache.rates.EUR,.9);
+const archiveRoundtrip=Core.parseImport(JSON.stringify({schemaVersion:1,snapshots:recentExport}),{allowed,now});assert.equal(archiveRoundtrip.length,2);assert.equal(archiveRoundtrip[1].dates.CNY,'2026-11-09');
+assert.equal(choose([{rates:{CNY:NaN,USD:1},date:now}]).kind,'builtin');
+const manual=Core.normalizeSnapshot({base:'USD',date:'2025-01-01',rates:{CNY:8,USD:1}},{allowed,now,origin:'imported'});
+assert.equal(choose([today],{mode:'imported',imported:[manual]}).kind,'imported');assert.equal(choose([today],{mode:'imported',imported:[manual]}).fromRate,8);
+assert.equal(choose([today],{from:'EUR',mode:'imported',imported:[manual]}).kind,'builtin');
+const weekend=Core.fromFrankfurter([{base:'USD',quote:'CNY',rate:7.2,date:'2026-11-18'},{base:'USD',quote:'EUR',rate:.9,date:'2026-11-18'}],{allowed,now});assert.equal(choose([weekend]).kind,'recent');assert.equal(choose([weekend]).date,'2026-11-18');
+assert.throws(()=>snapshot('2026-11-20'));assert.throws(()=>snapshot('2026-02-30'));
+const csv='\uFEFFbase,quote,rate,date\r\n"USD","CNY",7.2,2026-11-19\r\nUSD,EUR,0.9,2026-11-18';
+const imported=Core.parseImport(csv,{allowed,now});assert.equal(imported.length,1);assert.equal(imported[0].dates.EUR,'2026-11-18');
+const mixed=choose([],{from:'CNY',to:'EUR',mode:'imported',imported});assert.equal(mixed.date,'2026-11-18');assert.equal(mixed.dateEnd,now);assert.equal(Core.convert('100',mixed,2),'12.50');
+const usd={fromRate:1,toRate:1};assert.equal(Core.convert('1.005',usd,2),'1.01');assert.equal(Core.convert('-1.005',usd,2),'-1.01');assert.equal(Core.convert('1.5',usd,0),'2');assert.equal(Core.convert('1.2345',usd,3),'1.235');assert.equal(Core.dynamicDigits(210),2);assert.equal(Core.dynamicDigits(.037),3);assert.equal(Core.dynamicDigits(.28),2);assert.equal(Core.dynamicDigits(.00021),5);assert.equal(Core.dynamicDigits(0),2);
+for(const [value,expected] of [['0.037','0.037'],['0.28','0.28'],['0.00021','0.00021'],['0.01','0.010'],['0.1','0.10'],['1','1.00'],['210','210.00'],['0','0.00'],['-0.00021','-0.00021']])assert.equal(Core.convertDynamic(value,{fromRate:1,toRate:1}),expected);
+assert.equal(Core.convertDynamic('1',{fromRate:1e30,toRate:1}),'0.'+'0'.repeat(29)+'10');
+const extreme=Core.convertDynamic('1',{fromRate:1e308,toRate:5e-324});assert(!/^0\.0+$/.test(extreme));assert(extreme.includes('50'));
+assert.equal(Core.convert('1,234.56',choose([today]),2),'171.47');assert.equal(Core.convert('1',{fromRate:1e-7,toRate:1},2),'10000000.00');assert.equal(Core.formatAmount('-0.01'),'-0.01');assert.equal(Core.convert('0',usd,2),'0.00');assert.throws(()=>Core.convert('abc',usd,2));
+for(const rate of ['0','-1','Infinity','NaN','true'])assert.throws(()=>Core.parseImport('base,quote,rate,date\nUSD,CNY,'+rate+','+now,{allowed,now}));
+assert.throws(()=>Core.parseImport('base,quote,rate,date\nUSD,CNY,7.2,'+now+'\nUSD,CNY,7.3,'+now,{allowed,now}));assert.throws(()=>Core.parseImport('{"base":"USD","date":"'+now+'","rates":{"AAA":1}}',{allowed,now}));
+assert.throws(()=>Core.parseImport('"base,quote,rate,date',{allowed,now}));assert.throws(()=>Core.parseImport('x'.repeat(2*1024*1024+1),{allowed,now}));
+const jsonRoundtrip=Core.parseImport(JSON.stringify({...fallback,origin:'online'}),{allowed,now});assert.equal(jsonRoundtrip[0].origin,'imported');assert.equal(jsonRoundtrip[0].rates.CNY,fallback.rates.CNY);
+const clean=Core.sanitizeStore({cache:[today,{base:'USD'}],imported:[manual],config:{mode:'imported',provider:'custom',providerUrl:'https://example.test/rates',providerFormat:'custom-rates',from:'XXX',to:'CNY'}},allowed,now);assert.equal(clean.cache.length,1);assert.equal(clean.imported.length,1);assert.equal(clean.config.from,'');assert.equal(clean.config.mode,'imported');assert.equal(clean.config.provider,'custom');assert.equal(clean.config.providerUrl,'https://example.test/rates');
+const html=fs.readFileSync(__dirname+'/prototype.html','utf8'),catalogue=vm.runInNewContext(html.slice(html.indexOf('const catalogue='),html.indexOf('// TIMEZONE_REGISTRY'))+';catalogue',{Intl});
+let regions=0;for(const code of new Set(catalogue.map(zone=>zone.code))){const currencies=Reference.countries[code]?.currencies;assert(Array.isArray(currencies),'Missing region '+code);if(currencies.length)regions++;else assert(['AQ','UT'].includes(code));for(const currency of currencies){assert(fallback.rates[currency]>0,'No fallback for '+currency);const selected=Core.selectRate({from:currency,to:'USD',fallback,now});assert.notEqual(Core.convert('100',selected,4),'NaN')}}
+assert.equal(regions,246);assert.equal(allowed.size,153);assert.deepEqual(Reference.countries.PS.currencies,['ILS','JOD']);
+console.log('Currency priority, 10-day boundary, real observation dates, fixed imports, CSV/JSON validation, exact rounding and all 246 regions / 153 currencies passed.');

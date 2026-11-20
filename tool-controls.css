@@ -1,0 +1,19 @@
+.timezone-trigger{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;font-size:12px;font-weight:400;color:var(--text);background:var(--control)}
+.timezone-trigger-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.timezone-trigger>svg{width:13px;height:13px;flex-shrink:0;transform:rotate(90deg);color:var(--muted);margin-right:3px}
+.timezone-trigger[aria-expanded=true]{border-color:var(--blue)}
+.timezone-popover{position:fixed;z-index:90;display:flex;flex-direction:column;overflow:hidden;min-width:0;border:1px solid var(--line);border-radius:7px;background:var(--card);box-shadow:0 8px 24px var(--shadow)}
+.timezone-popover-search{flex-shrink:0;padding:10px;border-bottom:1px solid var(--line)}
+.timezone-popover-search .field{margin:0;width:100%;font-size:12px}
+.timezone-popover-search .field:is(:hover,:focus,:focus-visible){border-color:var(--line);outline:none;box-shadow:none}
+.timezone-popover-options{overflow-y:auto;min-height:0;padding:5px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.timezone-option-group{font-size:10px;color:var(--faint);padding:8px 9px 5px}
+.timezone-popover-option{display:block;width:100%;min-height:34px;border:0;border-radius:4px;background:transparent;color:var(--text);text-align:left;padding:8px 10px;font-size:12px;line-height:1.6;font-weight:400;overflow-wrap:anywhere}
+.timezone-popover-option:hover,.timezone-popover-option.keyboard-active{background:var(--hover)}
+.timezone-popover-option[aria-selected=true]{color:var(--blue);font-weight:600}
+.timezone-no-results{padding:14px 10px;color:var(--muted);font-size:12px}
+.comparison-zone-fields:has(>.timezone-trigger){display:block}
+.quick-zones{margin-top:10px}
+.quick-launch-key-control .field{flex:1;min-width:100px}
+.tool-shortcut-control{flex-basis:490px}
+.quick-launch-key-control>button{white-space:nowrap;padding-left:8px;padding-right:8px}

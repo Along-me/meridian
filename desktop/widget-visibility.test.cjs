@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict'),{createWidgetVisibility}=require('./widget-visibility.cjs');
+let visible=false,minimized=false;const calls=[];
+const window={isDestroyed:()=>false,isVisible:()=>visible,isMinimized:()=>minimized,restore(){calls.push('restore');minimized=false},show(){calls.push('show');visible=true},showInactive(){calls.push('showInactive');visible=true},focus(){calls.push('focus')},moveTop(){calls.push('moveTop')}};
+const visibility=createWidgetVisibility({getWindow:()=>window,locate:()=>calls.push('locate')});
+assert.equal(visibility.isShowing(),false);visibility.show();assert.deepEqual(calls,['locate','show','focus','moveTop']);assert.equal(visibility.isShowing(),true);
+calls.length=0;visibility.show();assert(calls.includes('show'),'Explicit recall must work even when the OS reports the cloaked window as visible');
+calls.length=0;visible=false;minimized=true;visibility.show();assert.deepEqual(calls,['restore','locate','show','focus','moveTop']);
+calls.length=0;visible=false;visibility.show({focus:false});assert.deepEqual(calls,['locate','showInactive']);
+assert.equal(createWidgetVisibility({getWindow:()=>null}).show(),false);
+console.log('Hidden, minimized and shell-suppressed widget recall plus inactive startup passed.');

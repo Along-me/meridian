@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict');
+const {readLoginItem,setLoginItem}=require('./login-items.cjs');
+const executable='D:\\Tools\\时钟挂件\\Meridian\\Meridian.exe';
+let info={openAtLogin:false,executableWillLaunchAtLogin:true,launchItems:[{name:'Meridian',path:executable,args:[],scope:'user',enabled:true}]};
+let written;
+const fake={getLoginItemSettings:()=>info,setLoginItemSettings:settings=>{
+  written=settings;
+  info={...info,launchItems:settings.openAtLogin?[{name:settings.name,path:settings.path,scope:'user',enabled:settings.enabled}]:[]};
+}};
+assert.deepEqual(readLoginItem(fake,executable),{registered:true,launchAtLogin:true,startupBlocked:false});
+assert.equal(readLoginItem(fake,executable.toLowerCase()).launchAtLogin,true);
+assert.equal(readLoginItem(fake,'C:\\Other\\Meridian.exe').registered,false);
+info.launchItems[0].enabled=false;
+assert.deepEqual(readLoginItem(fake,executable),{registered:true,launchAtLogin:false,startupBlocked:true});
+assert.equal(setLoginItem(fake,executable,true).launchAtLogin,true);
+assert.deepEqual(written,{openAtLogin:true,enabled:true,path:executable,args:['--autostart'],name:'Meridian'});
+assert.equal(setLoginItem(fake,executable,false).registered,false);
+const failed={getLoginItemSettings:()=>({openAtLogin:false,launchItems:[]}),setLoginItemSettings:()=>{}};
+assert.throws(()=>setLoginItem(failed,executable,true),/未能保存/);
+console.log('Startup named-entry detection, enable/disable, blocked state and failure checks passed. No Windows startup settings were changed.');

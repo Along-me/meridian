@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "state": {
+    "zones": [
+      {
+        "id": "Asia/Shanghai",
+        "visible": true,
+        "alias": ""
+      },
+      {
+        "id": "Asia/Jakarta",
+        "visible": true,
+        "alias": ""
+      },
+      {
+        "id": "America/Mexico_City",
+        "visible": true,
+        "alias": ""
+      },
+      {
+        "id": "Africa/Lagos",
+        "visible": true,
+        "alias": ""
+      }
+    ],
+    "showMilliseconds": false,
+    "widgetTheme": "dark"
+  },
+  "preferences": {
+    "launchAtLogin": true,
+    "startMinimized": true,
+    "toolShortcuts": {
+      "datetime": "",
+      "timestamp": "",
+      "comparison": "",
+      "widget": ""
+    }
+  }
+}

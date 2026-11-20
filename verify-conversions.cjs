@@ -1,0 +1,26 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const html=fs.readFileSync(__dirname+'/prototype.html','utf8');
+const core=html.split('/* CONVERSION_CORE_START */')[1].split('/* CONVERSION_CORE_END */')[0];
+const api=vm.runInNewContext(core+';({wallCandidates,dateText,parseStamp,stampText,parseWall})',{Intl,Date,Map,Set,Number,Error});
+let passed=0;
+function check(name,fn){fn();passed++;console.log('PASS '+name)}
+const only=(input,zone)=>{const a=api.wallCandidates(input,zone);assert.equal(a.length,1);return a[0]};
+check('Beijing to London winter',()=>assert.equal(api.dateText(only('2026-11-11T15:30','Asia/Shanghai'),'Europe/London'),'2026-11-11 07:30:00'));
+check('London summer daylight saving',()=>assert.equal(api.dateText(only('2026-07-11T15:30','Asia/Shanghai'),'Europe/London'),'2026-07-11 08:30:00'));
+check('New York spring gap rejected',()=>assert.equal(api.wallCandidates('2026-03-08T02:30','America/New_York').length,0));
+check('New York repeated hour has two instants',()=>{const a=api.wallCandidates('2026-11-01T01:30','America/New_York');assert.equal(a.length,2);assert.equal(a[1]-a[0],3600000)});
+check('Lord Howe half-hour repeated time',()=>{const a=api.wallCandidates('2026-04-05T01:45','Australia/Lord_Howe');assert.equal(a.length,2);assert.equal(a[1]-a[0],1800000)});
+check('Samoa skipped a whole date',()=>assert.equal(api.wallCandidates('2011-12-30T12:00','Pacific/Apia').length,0));
+check('Nepal quarter-hour offset',()=>assert.equal(api.dateText(only('2026-11-11T12:00','Asia/Kathmandu'),'UTC'),'2026-11-11 06:15:00'));
+check('India half-hour offset',()=>assert.equal(api.dateText(only('2026-11-11T12:00','Asia/Kolkata'),'UTC'),'2026-11-11 06:30:00'));
+check('Cross-day conversion',()=>assert.equal(api.dateText(only('2026-11-11T01:30','Asia/Shanghai'),'America/New_York'),'2026-11-10 12:30:00'));
+check('Timestamp zero',()=>assert.equal(api.dateText(api.parseStamp('0','seconds'),'UTC'),'1970-01-01 00:00:00'));
+check('Negative fractional timestamp',()=>assert.equal(api.dateText(api.parseStamp('-0.001','seconds'),'UTC'),'1969-12-31 23:59:59.999'));
+check('Milliseconds survive round trip',()=>{const ms=only('2026-11-11T15:30:00.123','Asia/Shanghai');assert.equal(api.parseStamp(api.stampText(ms,'seconds'),'seconds'),ms);assert.equal(api.parseStamp(api.stampText(ms,'milliseconds'),'milliseconds'),ms)});
+check('Reject invalid leap date',()=>assert.throws(()=>api.parseWall('2026-02-29T12:00')));
+check('Accept leap day',()=>assert.equal(api.dateText(only('2024-02-29T12:00','UTC'),'UTC'),'2024-02-29 12:00:00'));
+check('Reject sub-millisecond precision',()=>assert.throws(()=>api.parseStamp('1.1234','seconds')));
+check('Reject fractional milliseconds',()=>assert.throws(()=>api.parseStamp('1.5','milliseconds')));
+check('Reject outside date range',()=>assert.throws(()=>api.parseStamp('8640000000000001','milliseconds')));
+check('Support years below 100',()=>assert.equal(api.dateText(only('0099-01-02T12:00','UTC'),'UTC'),'0099-01-02 12:00:00'));
+console.log(passed+' conversion checks passed.');

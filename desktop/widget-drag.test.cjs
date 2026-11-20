@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict'),{createWidgetDrag}=require('./widget-drag.cjs');
+let cursor={x:100,y:200},locked=false,callback=null,cancelled=0;
+const bounds={x:400,y:500,width:250,height:330},moves=[];
+const window={isDestroyed:()=>false,getBounds:()=>({...bounds}),getPosition:()=>[bounds.x,bounds.y],setBounds(value){Object.assign(bounds,value);moves.push([value.x,value.y])}};
+const drag=createWidgetDrag({getWindow:()=>window,getCursor:()=>({...cursor}),canDrag:()=>!locked,schedule:fn=>{callback=fn;return 7},cancel:()=>{callback=null;cancelled++}});
+drag.begin();cursor={x:102,y:201};callback();assert.equal(moves.length,0);
+cursor={x:145,y:220};callback();assert.deepEqual(moves.at(-1),[445,520]);assert.equal(bounds.width,250);assert.equal(bounds.height,330);
+cursor={x:-120,y:160};callback();assert.deepEqual(moves.at(-1),[180,460]);
+locked=true;callback();assert.equal(callback,null);assert.equal(cancelled,1);
+drag.begin();assert.equal(callback,null);locked=false;drag.begin();drag.end();assert.equal(callback,null);
+let dpiBounds={x:400,y:500,width:524,height:133},dpiCallback;
+const dpiWindow={isDestroyed:()=>false,getBounds:()=>({...dpiBounds}),getPosition:()=>[dpiBounds.x,dpiBounds.y],setBounds(value){dpiBounds={...value,width:value.width+2,height:value.height+1}},setPosition(){throw Error('Position-only moves cause DPI growth')}};
+const dpiDrag=createWidgetDrag({getWindow:()=>dpiWindow,getCursor:()=>cursor,getSize:()=>({width:522,height:132}),canDrag:()=>true,schedule:fn=>{dpiCallback=fn;return 8},cancel(){}});
+cursor={x:100,y:200};dpiDrag.begin();for(let index=0;index<100;index++){cursor={x:100+(index%2)*40,y:200+(index%3)*20};dpiCallback();assert.equal(dpiBounds.width,524);assert.equal(dpiBounds.height,133)}dpiDrag.end();
+console.log('Whole-widget dragging threshold, cursor displacement, lock cancellation, size preservation and release passed.');

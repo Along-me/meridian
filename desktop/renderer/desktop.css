@@ -1,0 +1,31 @@
+html,body{user-select:none}
+.app-update-settings{margin-top:26px}.update-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.update-actions button{font-size:12px;min-height:32px;padding:6px 11px}.update-status{font-size:11px;line-height:1.8;color:var(--muted);margin:6px 0 0;max-width:430px}.update-status.error{color:var(--danger)}#update-notes-wrap{padding:16px;border-top:1px solid var(--line);font-size:12px}#update-notes{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.8 inherit;max-height:220px;overflow:auto}.update-release-link{font-size:11px;margin-top:9px}
+input,textarea,[data-copy],.result-time{user-select:text}
+body.desktop-manager .prototype-tag{color:var(--muted)}
+body.desktop-manager .appbar{padding-right:156px;border-bottom:0;-webkit-app-region:drag;user-select:none}
+body.desktop-manager .appbar-actions,body.desktop-manager .appbar select,body.desktop-manager .appbar button{-webkit-app-region:no-drag}
+body.desktop-manager .identity{display:none}
+body.desktop-manager [data-page=packaging],body.desktop-manager #page-packaging{display:none!important}
+body.desktop-manager [data-preview-only],body.desktop-manager #desktop-preferences-status:not(.error){display:none!important}
+body.desktop-widget{margin:0;overflow:hidden;background:transparent!important}
+body.desktop-widget>.appbar,body.desktop-widget>.layout,body.desktop-widget>.modal-mask,body.desktop-widget>#toast,body.desktop-widget>#date-picker{display:none!important}
+.desktop-widget-root{position:fixed;inset:0;overflow:hidden;background:transparent}
+.desktop-widget-root>.widget{position:absolute!important;left:0!important;top:0!important;right:0!important;bottom:0!important;width:100%!important;height:100%!important;min-width:110px!important;max-width:none!important;min-height:0!important;max-height:none!important;border-radius:8px;box-shadow:none}
+.desktop-widget-root .widget,.desktop-widget-root .widget-top{-webkit-app-region:no-drag;cursor:grab;touch-action:none}
+.desktop-widget-root .widget.widget-dragging{cursor:grabbing}
+.desktop-widget-root.widget-locked .widget{cursor:default}
+.desktop-widget-root .widget-top button{-webkit-app-region:no-drag;cursor:pointer}
+.desktop-widget-root.widget-locked .widget-top{-webkit-app-region:no-drag;cursor:default}
+.desktop-widget-root .auto-hide-header:not(.header-revealed) .widget-top{-webkit-app-region:no-drag}
+.desktop-widget-root .resize-handle{display:none}
+.desktop-widget-root .widget-content{padding-bottom:12px}
+.desktop-widget-root .widget-row:focus-visible{outline-offset:-3px}
+.desktop-setting-note{font-size:10px;color:var(--muted);margin:6px 0 0;line-height:1.7}
+.desktop-preferences-status{font-size:11px;line-height:1.8;color:var(--muted);margin:10px 0 0}
+.desktop-preferences-status.error{color:var(--danger)}
+.desktop-runtime-tag{font-size:10px;color:var(--success);white-space:nowrap}
+.desktop-widget-actions{display:inline-flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px 10px;max-width:calc(100% - 18px);-webkit-app-region:no-drag}
+body.desktop-widget #widget-tooltip,body.desktop-widget #widget-header-tooltip{visibility:hidden}
+.desktop-widget-root>.widget>.widget-top,.desktop-widget-root>.widget>.widget-content{position:relative;z-index:1}
+.desktop-widget-root>.widget.auto-hide-header>.widget-top{position:absolute;z-index:4}
+
