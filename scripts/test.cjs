@@ -7,7 +7,7 @@ const tests=[
   'desktop/widget-visibility.test.cjs','desktop/header-overlay.test.cjs','desktop/tooltip-window.test.cjs',
   'desktop/login-items.test.cjs','verify-presets.cjs'
 ];
-for(const file of tests){
+for(const file of ['desktop/prepare.cjs',...tests]){
   const result=spawnSync(process.execPath,[file],{cwd:path.join(__dirname,'..'),stdio:'inherit'});
   if(result.error)throw result.error;
   if(result.status!==0)process.exit(result.status||1);
