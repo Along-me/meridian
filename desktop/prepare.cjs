@@ -10,6 +10,8 @@ const html=source
   .replace(/<span\b[^>]*data-preview-only[^>]*>[\s\S]*?<\/span>/g,'')
   .replace('HTML 中仅配置打包默认值，不修改系统自启。','')
   .replace('<script src="./preview-presets.js"></script>','')
+  .replace('<script src="./desktop/renderer/updates.js"></script>','')
+  .replace('./desktop/renderer/updates.css','./renderer/updates.css')
   .replace('./comparison-tools.css','./renderer/comparison-tools.css')
   .replace('./comparison-tools.js','./renderer/comparison-tools.js')
   .replace('./currency-tools.css','./renderer/currency-tools.css')

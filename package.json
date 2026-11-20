@@ -1,10 +1,13 @@
 {
   "name": "meridian-desktop",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "description": "Meridian Windows world clock and time conversion tools",
   "author": "Along-me",
-  "repository": {"type":"git","url":"https://github.com/Along-me/meridian.git"},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Along-me/meridian.git"
+  },
   "homepage": "https://github.com/Along-me/meridian",
   "license": "UNLICENSED",
   "main": "desktop/main.cjs",
@@ -28,7 +31,14 @@
     "appId": "com.meridian.worldclock",
     "productName": "Meridian",
     "asar": true,
-    "publish": [{"provider":"github","owner":"Along-me","repo":"meridian","releaseType":"release"}],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Along-me",
+        "repo": "meridian",
+        "releaseType": "release"
+      }
+    ],
     "electronDist": "node_modules/electron/dist",
     "directories": {
       "output": "release",

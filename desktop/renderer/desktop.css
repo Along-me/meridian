@@ -1,5 +1,4 @@
 html,body{user-select:none}
-.app-update-settings{margin-top:26px}.update-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.update-actions button{font-size:12px;min-height:32px;padding:6px 11px}.update-status{font-size:11px;line-height:1.8;color:var(--muted);margin:6px 0 0;max-width:430px}.update-status.error{color:var(--danger)}#update-notes-wrap{padding:16px;border-top:1px solid var(--line);font-size:12px}#update-notes{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.8 inherit;max-height:220px;overflow:auto}.update-release-link{font-size:11px;margin-top:9px}
 input,textarea,[data-copy],.result-time{user-select:text}
 body.desktop-manager .prototype-tag{color:var(--muted)}
 body.desktop-manager .appbar{padding-right:156px;border-bottom:0;-webkit-app-region:drag;user-select:none}
