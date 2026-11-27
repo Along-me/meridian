@@ -24,7 +24,8 @@
       }
     ],
     "showMilliseconds": false,
-    "widgetTheme": "dark"
+    "widgetTheme": "dark",
+    "edgeSnap": true
   },
   "preferences": {
     "launchAtLogin": true,

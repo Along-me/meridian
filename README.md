@@ -22,18 +22,30 @@ Windows 桌面时钟与日常转换工具。
 ```powershell
 npm ci
 powershell -NoProfile -ExecutionPolicy Bypass -File desktop/make-icons.ps1
-npm run preview
+npm start
 ```
 
-预览地址由终端输出。运行桌面开发版：`npm start`；验证：`npm test`、`npm run test:desktop`；生成 Windows 安装包：`npm run dist`。
+日常调试使用 `npm start`，直接运行管理窗口和真实挂件，不需要打包。修改后退出托盘中的 Meridian，再运行一次。若已有安装版或测试包运行，先从托盘退出，避免单实例机制召回旧版。
 
-`build-presets.json` 保存安装包默认选项，HTML 的“打包与启动”页可编辑；该开发入口不会出现在安装版中。用户运行配置、汇率凭据及缓存存放在本机用户目录，不提交到仓库。
+`prototype.html` 是共享界面源码，`desktop/prepare.cjs` 在启动和构建前将它生成到 `desktop/app.html`；后者不直接编辑。日常不需要浏览器预览。首次安装默认值直接在 `build-presets.json` 修改；已有用户配置不受影响。原浏览器预览只保留为可选辅助入口。
+
+验证：`npm test`、`npm run test:desktop`。桌面测试使用独立临时配置。用户运行配置、汇率凭据及缓存存放在本机用户目录，不提交到仓库。
+
+## 构建输出
+
+- `npm run pack`：免安装目录包，固定输出到 `release/local/win-unpacked/`。
+- 双击该固定目录的 `Meridian.exe` 即可运行，无需安装。
+- `npm run dist`：Windows 安装包和更新文件，输出到 `release/installers/`。
+- `release/installers/` 内保留当前版本的 `.exe`、同名 `.blockmap` 和配套 `latest.yml`。
+- 不再为每次修复另建日期目录；重新构建前退出该目录中的程序。
+
+旧的 `edge-fixed-20261127` 测试目录已清理。日常体验使用 `release/local/win-unpacked/Meridian.exe`，调试源码使用 `npm start`。
 
 ## 发布与版本
 
 `package.json` 和 `package-lock.json` 的版本保持一致。发布时更新版本与说明，提交后推送同名标签（例如 `v1.2.1`）。GitHub Actions 将验证标签、运行检查并构建安装包，然后发布包含 `.exe`、`.blockmap` 和 `latest.yml` 的正式 Release。
 
-客户端仅检查正式版本；保留三个更新文件，不要覆盖同一个版本的安装包。发现问题时发布更高的修复版本。可先用 `npm run dist` 在本机验证，构建文件位于 `release/`。
+客户端仅检查正式版本；保留三个更新文件，不要覆盖同一个版本的安装包。发现问题时发布更高的修复版本。可先用 `npm run dist` 在本机验证，构建文件位于 `release/installers/`。
 
 首次发布 1.2.0 采用本机构建上传。后续标签由 [发布工作流](.github/workflows/release.yml) 处理；普通提交由 [检查工作流](.github/workflows/check.yml) 验证。
 

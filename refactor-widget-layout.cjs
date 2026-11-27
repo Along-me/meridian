@@ -1,5 +1,5 @@
 const fs=require('node:fs'),path=require('node:path'),{spawnSync}=require('node:child_process');
-const root=path.dirname(__dirname),exe=process.argv[2],file='时区助手/prototype.html';
+const root=path.dirname(__dirname),exe=process.argv[2],file='MeridianWidget/prototype.html';
 if(!exe)throw new Error('Pass apply_patch executable.');
 const source=fs.readFileSync(path.join(root,file),'utf8');
 if(source.includes('/* WIDGET_LAYOUT_START */'))throw new Error('Already consolidated; edit the dedicated widget layout block.');

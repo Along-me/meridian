@@ -1,6 +1,6 @@
 const fs=require('node:fs'),path=require('node:path'),{spawnSync}=require('node:child_process');
 const exe=process.argv[2];if(!exe)throw new Error('Pass the native apply_patch executable.');
-const root=path.dirname(__dirname),file='时区助手/ui-theme.css';
+const root=path.dirname(__dirname),file='MeridianWidget/ui-theme.css';
 function patch(text){const r=spawnSync(exe,['--codex-run-as-apply-patch',text],{cwd:root,encoding:'utf8'});if(r.status!==0)throw new Error(r.stderr||r.stdout||r.error)}
 // Use apply_patch for all edits, batching under the Windows process argument limit.
 const old=fs.readFileSync(path.join(root,file),'utf8').trimEnd().split(/\r?\n/).filter(Boolean);

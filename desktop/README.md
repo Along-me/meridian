@@ -2,6 +2,15 @@
 
 Windows 桌面应用。源码与版本发布： https://github.com/Along-me/meridian 。安装版支持检查更新，下载及安装均需手动确认。
 
+日常开发用 `npm start`，无需打包或打开浏览器。当前开发流程与输出目录见 [项目说明](../README.md)。以下为历史版本记录。
+
+## 1.2.2 更新
+
+- 新增独立的贴边吸附与自动隐藏开关。吸附默认开启，鼠标靠近挂件所在边缘可召回，离开后自动收起，可与置顶一起使用。
+- “隐藏顶部栏”改为持续隐藏，悬停和贴边召回均不展开；在管理页恢复。移除顶部关闭按钮，新增贴边隐藏按钮。
+- 说明气泡改为页面浮层，避免悬停时撑高设置页；挂件气泡等待内容绘制与测量后显示，拒绝过期测量，减少闪动。
+- 项目目录更名为 MeridianWidget，免安装包固定输出到 release/local，安装包输出到 release/installers。
+
 ## 1.2.0 更新
 
 - 接入 GitHub Releases 更新检测：默认启动时检查，助手设置可关闭自动检查或手动检查，用户点击后才下载／退出安装。
@@ -165,7 +174,7 @@ Windows 桌面应用。源码与版本发布： https://github.com/Along-me/meri
 
 ## 使用
 
-- 双击 `release/Meridian-Setup-1.2.0-x64.exe` 安装。
+- 双击 `release/installers/` 中当前版本的安装程序。
 - 安装后打开 Meridian，管理窗口和桌面挂件独立运行。
 - 关闭管理窗口会收进系统托盘；单击召回挂件、双击打开管理界面，右键提供“显示并定位挂件”、隐藏和退出。
 - 「助手设置 → 开机与后台」提供开机启动及自启时仅显示挂件的设置，首次安装默认值来自打包预设，升级保留原配置。
@@ -185,9 +194,9 @@ npm run test:desktop
 npm run dist
 ```
 
-`desktop/prepare.cjs` 从 `prototype.html` 生成 `desktop/app.html`；继续修改原型即可复用界面。桌面适配层在 `desktop/renderer/adapter.js`，原型依然可以独立打开。
+`desktop/prepare.cjs` 从 `prototype.html` 生成 `desktop/app.html`；界面修改仍在源文件完成。桌面适配层在 `desktop/renderer/adapter.js`。浏览器预览是可选辅助，调试原生行为请使用 `npm start`。
 
-版本号统一在 `package.json` 中维护。当前版本为 `1.2.0`。
+版本号在 `package.json` 与 `package-lock.json` 中同步维护。
 
 0.1.1 将系统标题栏与应用顶部栏合并为一条可拖动标题栏，保留 Windows 最小化、最大化/还原、关闭按钮；主题选择位于按钮左侧。左侧重复品牌区已移除。
 

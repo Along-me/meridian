@@ -15,6 +15,7 @@ function validatePresets(value){
   const state=clone(value.state);
   // This file is data only; consumers apply their usual renderer/main-process checks.
   state.widgetTheme=['light','dark'].includes(state.widgetTheme)?state.widgetTheme:['light','dark'].includes(state.theme)?state.theme:'dark';
+  state.edgeSnap=state.edgeSnap!==false;
   delete state.__proto__;delete state.constructor;delete state.prototype;delete state.theme;delete state.frostedGlass;delete state.glassBlur;
   const toolShortcuts=requestedToolShortcuts(storedToolShortcuts(value.preferences));
   return {schemaVersion:1,state,preferences:{launchAtLogin:value.preferences.launchAtLogin,startMinimized:value.preferences.startMinimized,toolShortcuts}};

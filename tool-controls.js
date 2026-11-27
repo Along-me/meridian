@@ -105,4 +105,28 @@
   }
   const heading=Array.from(document.querySelectorAll('#page-assistant h2')).find(node=>node.textContent==='工具快捷启动');
   if(heading){const help=document.createElement('span');help.className='color-priority-help';help.innerHTML='<button type="button" class="color-priority-info" aria-label="快捷键录制说明" aria-describedby="shortcut-capture-tip">'+icon('info')+'</button><span id="shortcut-capture-tip" class="color-priority-tip" role="tooltip">系统或其他软件可能优先截获按键，导致录制收不到组合键。可点击“手动”输入，如 Ctrl+Alt+T，再保存检测冲突。</span>';heading.appendChild(help)}
+  // Help bubbles belong to the viewport, not the scrolling settings panel.
+  // Even absolutely positioned children otherwise extend its scrollable area.
+  const helpTip=document.createElement('div');helpTip.className='settings-floating-tip hidden';helpTip.setAttribute('role','tooltip');document.body.appendChild(helpTip);
+  let helpOwner=null;
+  function hideHelp(){helpOwner=null;helpTip.classList.add('hidden')}
+  function showHelp(owner){
+    if(owner.closest('.currency-page'))return;
+    const source=owner.querySelector('.color-priority-tip'),button=owner.querySelector('button');if(!source||!button)return;
+    helpOwner=owner;helpTip.textContent=source.textContent;
+    helpTip.style.width=Math.min(280,Math.max(0,innerWidth-24))+'px';helpTip.style.maxHeight=Math.max(0,innerHeight-24)+'px';
+    helpTip.classList.remove('hidden');
+    const r=button.getBoundingClientRect(),w=helpTip.offsetWidth,h=helpTip.offsetHeight;
+    helpTip.style.left=Math.max(12,Math.min(r.left,innerWidth-w-12))+'px';
+    const top=r.bottom+6+h<=innerHeight-12?r.bottom+6:r.top-h-6;
+    helpTip.style.top=Math.max(12,Math.min(top,innerHeight-h-12))+'px';
+  }
+  document.addEventListener('pointerover',event=>{const owner=event.target.closest('.color-priority-help');if(owner&&owner!==helpOwner)showHelp(owner)});
+  document.addEventListener('pointerout',event=>{if(helpOwner&&helpOwner.contains(event.target)&&!helpOwner.contains(event.relatedTarget))hideHelp()});
+  document.addEventListener('focusin',event=>{const owner=event.target.closest('.color-priority-help');if(owner)showHelp(owner)});
+  document.addEventListener('focusout',event=>{if(helpOwner?.contains(event.target))hideHelp()});
+  document.addEventListener('click',event=>{const owner=event.target.closest('.color-priority-help');if(owner)showHelp(owner);else hideHelp()});
+  document.addEventListener('scroll',event=>{if(!helpTip.contains(event.target))hideHelp()},true);
+  document.addEventListener('keydown',event=>{if(event.key==='Escape')hideHelp()});
+  window.addEventListener('resize',hideHelp);window.addEventListener('blur',hideHelp);
 })();

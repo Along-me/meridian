@@ -27,6 +27,15 @@ module.exports=async({app,manager,widget,getWidget,getState,storePath})=>{
   const pageGroups=await manager.webContents.executeJavaScript(`({styleControls:document.querySelectorAll('#widget-panel-style [data-style-choices]').length,preferAlias:document.querySelectorAll('[data-toggle="preferAlias"]').length,content:!!document.querySelector('#widget-panel-display [data-toggle="date"]'),color:!!document.querySelector('#widget-panel-colors [data-toggle="customTextColor"]'),previews:document.querySelectorAll('.preview-desktop').length,startup:!!document.querySelector('#page-assistant #launch-at-login'),tabs:document.querySelectorAll('[data-widget-tab]').length})`);
   assert.equal(pageGroups.styleControls,1);assert.equal(pageGroups.preferAlias,1);assert.equal(pageGroups.content,true);assert.equal(pageGroups.color,true);assert.equal(pageGroups.previews,1);assert.equal(pageGroups.startup,true);
   assert.equal(pageGroups.tabs,4);
+  assert.equal(getState().edgeSnap,true,'Fresh installs enable edge snapping');
+  const edgeHeader=await widget.webContents.executeJavaScript(`(()=>{const b=document.getElementById('preview-edge-hide');return {close:!!document.querySelector('[aria-label="隐藏桌面挂件"]'),pressed:b.getAttribute('aria-pressed')}})()`);
+  assert.equal(edgeHeader.close,false);assert.equal(edgeHeader.pressed,'false');
+  await widget.webContents.executeJavaScript(`document.getElementById('preview-edge-hide').click()`);
+  await new Promise(resolve=>setTimeout(resolve,150));assert.equal(getState().edgeHide,true);
+  assert.equal(await manager.webContents.executeJavaScript(`document.querySelector('[data-toggle="edgeHide"]').getAttribute('aria-checked')`),'true');
+  await manager.webContents.executeJavaScript(`document.querySelector('[data-toggle="edgeHide"]').click()`);
+  await new Promise(resolve=>setTimeout(resolve,150));
+  assert.equal(await widget.webContents.executeJavaScript(`document.getElementById('preview-edge-hide').getAttribute('aria-pressed')`),'false');
   const beforeAutoHide=widget.getBounds(),fullHeader=await widget.webContents.executeJavaScript(`widgetHeaderFullHeight(document.getElementById('widget'))`);
   await widget.webContents.executeJavaScript(`document.getElementById('preview-header-hide').click()`);
   await new Promise(resolve=>setTimeout(resolve,200));assert.equal(getState().autoHideHeader,true);
@@ -40,9 +49,19 @@ module.exports=async({app,manager,widget,getWidget,getState,storePath})=>{
   assert.equal(await widget.webContents.executeJavaScript(`document.getElementById('preview-header-hide').getAttribute('aria-pressed')`),'false');
   for(let attempt=0;attempt<30&&widget.getBounds().height!==beforeAutoHide.height;attempt++)await new Promise(resolve=>setTimeout(resolve,100));
   assert.equal(widget.getBounds().height,beforeAutoHide.height,'Disabling auto-hide must restore the previous full height');
-  assert.match(await manager.webContents.executeJavaScript(`document.getElementById('header-drag-note').textContent`),/0.6 秒.*0.6 秒.*顶部隐藏.*拖动.*锁定挂件位置/);
+  assert.match(await manager.webContents.executeJavaScript(`document.getElementById('header-drag-note').textContent`),/悬停和贴边召回.*不会展开.*恢复/);
   const headerLayout=await manager.webContents.executeJavaScript(`(()=>{const header=document.querySelector('#widget .widget-top'),group=header.querySelector('.widget-header-actions'),hide=document.getElementById('preview-header-hide'),pin=document.getElementById('preview-pin'),help=document.getElementById('header-drag-note'),r=header.getBoundingClientRect(),g=group.getBoundingClientRect();return {grouped:hide.parentElement===pin.parentElement,atRight:Math.abs(g.right-(r.right-parseFloat(getComputedStyle(header).paddingRight)-parseFloat(getComputedStyle(header).borderRightWidth)))<2,help:help.getAttribute('role'),hidden:getComputedStyle(help).display}})()`);
   assert.equal(headerLayout.grouped,true);assert.equal(headerLayout.atRight,true);assert.equal(headerLayout.help,'tooltip');assert.equal(headerLayout.hidden,'none');
+  const helpLayout=await manager.webContents.executeJavaScript(`(async()=>{
+    selectWidgetTab('display');const main=document.querySelector('.main'),button=document.querySelector('[aria-describedby="header-drag-note"]');
+    main.scrollTop=main.scrollHeight;await new Promise(resolve=>requestAnimationFrame(resolve));
+    const before={height:main.scrollHeight,top:main.scrollTop,rows:Array.from(document.querySelectorAll('#widget-panel-display .setting-row')).map(row=>row.getBoundingClientRect().height)};
+    button.dispatchEvent(new PointerEvent('pointerover',{bubbles:true,pointerType:'mouse'}));await new Promise(resolve=>requestAnimationFrame(resolve));
+    const tip=document.querySelector('.settings-floating-tip'),r=tip.getBoundingClientRect();
+    const result={before,after:{height:main.scrollHeight,top:main.scrollTop,rows:Array.from(document.querySelectorAll('#widget-panel-display .setting-row')).map(row=>row.getBoundingClientRect().height)},visible:!tip.classList.contains('hidden'),parent:tip.parentElement===document.body,position:getComputedStyle(tip).position,inside:r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight,text:tip.textContent};
+    button.dispatchEvent(new PointerEvent('pointerout',{bubbles:true,relatedTarget:main}));result.hidden=tip.classList.contains('hidden');selectWidgetTab('timezones');return result;
+  })()`);
+  assert.equal(helpLayout.visible,true);assert.equal(helpLayout.parent,true);assert.equal(helpLayout.position,'fixed');assert.equal(helpLayout.inside,true);assert.match(helpLayout.text,/隐藏后只显示时钟/);assert.deepEqual(helpLayout.after,helpLayout.before,'Help hover must not extend page height or move rows');assert.equal(helpLayout.hidden,true);
 
   const offPaint=await manager.webContents.executeJavaScript(`(()=>{const original=JSON.parse(JSON.stringify(state)),result={};const switches=['customBackground','customTextColor','customCardBackground'],colors=['backgroundColor','textColor','cardBackgroundColor'],controls=['widget-background-color','widget-text-color','widget-card-color','background-opacity','foreground-opacity','card-opacity'];state.widgetStyle='cards';state.frostedGlass=false;function snapshot(){const w=document.getElementById('widget');return {background:getComputedStyle(w).backgroundColor,text:getComputedStyle(w.querySelector('.widget-country')).color,foreground:getComputedStyle(w.querySelector('.widget-city')).opacity,line:getComputedStyle(w).borderTopColor,card:getComputedStyle(w.querySelector('.widget-row')).backgroundColor}}for(const theme of ['light','dark']){state.widgetTheme=theme;state.appTheme=theme==='light'?'dark':'light';for(const key of switches)state[key]=false;applyAppTheme();const baseline=snapshot();state.backgroundColor='#123456';state.textColor='#abcdef';state.cardBackgroundColor='#456789';state.backgroundOpacity=7;state.foregroundOpacity=13;state.cardOpacity=29;renderWidget();syncControls();const stored=JSON.stringify([state.backgroundColor,state.textColor,state.cardBackgroundColor,state.backgroundOpacity,state.foregroundOpacity,state.cardOpacity]);for(const id of controls){const input=document.getElementById(id);input.value=id.includes('color')?'#ff0000':99;input.dispatchEvent(new Event('input'))}for(const key of colors){const reset=document.querySelector('[data-reset-color="'+key+'"]');reset.click()}result[theme]={baseline,after:snapshot(),disabled:controls.every(id=>document.getElementById(id).disabled)&&colors.every(key=>document.querySelector('[data-reset-color="'+key+'"]').disabled),stored:stored===JSON.stringify([state.backgroundColor,state.textColor,state.cardBackgroundColor,state.backgroundOpacity,state.foregroundOpacity,state.cardOpacity])};for(const key of switches)state[key]=true;renderWidget();syncControls();result[theme].custom=snapshot();for(const key of switches)document.querySelector('[data-toggle="'+key+'"]').click();result[theme].restored=snapshot()}state=original;save();applyAppTheme();return result})()`);
   for(const theme of ['light','dark']){assert.deepEqual(offPaint[theme].baseline,offPaint[theme].after,'Disabled custom values must not affect '+theme+' defaults');assert.deepEqual(offPaint[theme].baseline,offPaint[theme].restored,'Turning custom off must restore '+theme+' defaults');assert.equal(offPaint[theme].disabled,true);assert.equal(offPaint[theme].stored,true);assert.equal(offPaint[theme].custom.foreground,'0.13');assert.notDeepEqual(offPaint[theme].custom,offPaint[theme].baseline);}
@@ -153,18 +172,27 @@ module.exports=async({app,manager,widget,getWidget,getState,storePath})=>{
   const popup=require('electron').BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('/tooltip.html'));
   assert(popup);assert.equal(popup.getParentWindow(),widget);
   const fullHover=await popup.webContents.executeJavaScript(`document.getElementById('tooltip').innerText`);assert.match(fullHover,/中国办公室/);assert.match(fullHover,/北京/);assert.match(fullHover,/Asia\/Shanghai/);
-  await widget.webContents.executeJavaScript(`updateWidgetHeader(document.getElementById('widget'),true)`);
-  await new Promise(resolve=>setTimeout(resolve,200));
-  assert.equal(await widget.webContents.executeJavaScript(`document.getElementById('widget').classList.contains('header-revealed')`),false,'Menu should wait 0.6 seconds');
-  for(let attempt=0;attempt<30;attempt++){if(await widget.webContents.executeJavaScript(`document.getElementById('widget').classList.contains('header-revealed')`))break;await new Promise(resolve=>setTimeout(resolve,100))}
-  await new Promise(resolve=>setTimeout(resolve,220));
-  const overlay=await widget.webContents.executeJavaScript(`(()=>{const w=document.getElementById('widget'),h=w.querySelector('.widget-top'),r=w.querySelector('.widget-content').getBoundingClientRect();h.getAnimations().forEach(animation=>animation.finish());return {revealed:w.classList.contains('header-revealed'),position:getComputedStyle(h).position,opacity:getComputedStyle(h).opacity,top:r.top,height:r.height}})()`);
-  assert.equal(overlay.revealed,true);assert.equal(overlay.position,'absolute');assert.equal(overlay.opacity,'1',JSON.stringify(overlay));assert(Math.abs(overlay.top-contentBefore.top)<1);assert(Math.abs(overlay.height-contentBefore.height)<1);assert.deepEqual(widget.getBounds(),compactBounds);
+  let tooltipShows=0,tooltipResizes=0;
+  const countTipShow=()=>tooltipShows++,countTipResize=()=>tooltipResizes++;
+  popup.on('show',countTipShow);popup.on('resize',countTipResize);
+  const stableTooltip=popup.getBounds();
+  await widget.webContents.executeJavaScript(`refreshWidgetTooltip(new Date(Date.now()+1000))`);
+  await new Promise(resolve=>setTimeout(resolve,180));
+  await widget.webContents.executeJavaScript(`refreshWidgetTooltip(new Date(Date.now()+2000))`);
+  await new Promise(resolve=>setTimeout(resolve,180));
+  assert.equal(tooltipShows,0,'Live clock updates must not re-show the native tooltip');
+  assert.equal(tooltipResizes,0,'Live clock updates must not resize a stable tooltip');
+  assert.deepEqual(popup.getBounds(),stableTooltip);
+  popup.removeListener('show',countTipShow);popup.removeListener('resize',countTipResize);
+  await widget.webContents.executeJavaScript(`document.getElementById('widget').dispatchEvent(new PointerEvent('pointerenter'));`);
+  await new Promise(resolve=>setTimeout(resolve,750));
+  const overlay=await widget.webContents.executeJavaScript(`(()=>{const w=document.getElementById('widget');return {visibility:getComputedStyle(w.querySelector('.widget-top')).visibility}})()`);
+  assert.equal(overlay.visibility,'hidden');assert.deepEqual(widget.getBounds(),compactBounds);
   const hints=await widget.webContents.executeJavaScript(`(()=>{const header=document.querySelector('#widget .widget-top');showWidgetControlTooltip(document.getElementById('preview-header-hide'));return {titles:header.querySelectorAll('[title]').length,text:headerControlTooltipBox.textContent,gap:getComputedStyle(header.querySelector('.widget-header-actions')).columnGap}})()`);
-  assert.equal(hints.titles,0);assert.match(hints.text,/自动隐藏/);assert.equal(hints.gap,'10px');await new Promise(resolve=>setTimeout(resolve,150));assert.equal(popup.isVisible(),true);
+  assert.equal(hints.titles,0);assert.equal(hints.gap,'10px');
   await widget.webContents.executeJavaScript('hideWidgetControlTooltip()');
   await widget.webContents.executeJavaScript(`updateWidgetHeader(document.getElementById('widget'),false)`);await new Promise(resolve=>setTimeout(resolve,200));
-  assert.equal(await widget.webContents.executeJavaScript(`document.getElementById('widget').classList.contains('header-revealed')`),true,'Menu should wait 0.6 seconds before hiding');
+  assert.equal(await widget.webContents.executeJavaScript(`document.getElementById('widget').classList.contains('header-revealed')`),false);
   await new Promise(resolve=>setTimeout(resolve,650));
   assert.equal(await widget.webContents.executeJavaScript(`document.getElementById('widget').classList.contains('header-revealed')`),false);assert.deepEqual(widget.getBounds(),compactBounds);
   await widget.webContents.executeJavaScript(`document.getElementById('widget').dispatchEvent(new PointerEvent('pointerenter',{pointerType:'mouse'}));document.getElementById('widget').dispatchEvent(new PointerEvent('pointerleave',{pointerType:'mouse'}))`);

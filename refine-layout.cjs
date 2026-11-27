@@ -7,7 +7,7 @@ function replace(old,value){
   if(index<0)throw new Error('Missing source: '+old.slice(0,90));
   const start=source.lastIndexOf('\n',index)+1,next=source.indexOf('\n',index+old.length),end=next<0?source.length:next;
   const before=source.slice(start,end),after=before.replace(old,value);
-  const patch='*** Begin Patch\n*** Update File: 时区助手/prototype.html\n@@\n'+before.split('\n').map(l=>'-'+l).join('\n')+'\n'+after.split('\n').map(l=>'+'+l).join('\n')+'\n*** End Patch';
+  const patch='*** Begin Patch\n*** Update File: MeridianWidget/prototype.html\n@@\n'+before.split('\n').map(l=>'-'+l).join('\n')+'\n'+after.split('\n').map(l=>'+'+l).join('\n')+'\n*** End Patch';
   const result=spawnSync(exe,['--codex-run-as-apply-patch',patch],{cwd:path.dirname(__dirname),encoding:'utf8'});
   if(result.status!==0)throw new Error(result.stderr||result.stdout||result.error);
 }

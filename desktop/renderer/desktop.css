@@ -15,7 +15,7 @@ body.desktop-widget>.appbar,body.desktop-widget>.layout,body.desktop-widget>.mod
 .desktop-widget-root.widget-locked .widget{cursor:default}
 .desktop-widget-root .widget-top button{-webkit-app-region:no-drag;cursor:pointer}
 .desktop-widget-root.widget-locked .widget-top{-webkit-app-region:no-drag;cursor:default}
-.desktop-widget-root .auto-hide-header:not(.header-revealed) .widget-top{-webkit-app-region:no-drag}
+.desktop-widget-root .auto-hide-header .widget-top{-webkit-app-region:no-drag}
 .desktop-widget-root .resize-handle{display:none}
 .desktop-widget-root .widget-content{padding-bottom:12px}
 .desktop-widget-root .widget-row:focus-visible{outline-offset:-3px}

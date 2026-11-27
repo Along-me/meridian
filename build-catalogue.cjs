@@ -31,7 +31,7 @@ const lines = [
 ];
 // Small batches also work within Windows native command-line limits.
 for (let i = 0; i < lines.length; i += 45) {
-  const patch = '*** Begin Patch\n*** Update File: 时区助手/prototype.html\n@@\n-// TIMEZONE_REGISTRY\n'
+  const patch = '*** Begin Patch\n*** Update File: MeridianWidget/prototype.html\n@@\n-// TIMEZONE_REGISTRY\n'
     + lines.slice(i, i + 45).map(line => '+' + line).join('\n') + '\n+// TIMEZONE_REGISTRY\n*** End Patch';
   const r = spawnSync(patchExe, ['--codex-run-as-apply-patch', patch], { cwd: path.dirname(root), encoding: 'utf8' });
   if (r.status !== 0) throw new Error(r.stderr || r.stdout || r.error);

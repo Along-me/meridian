@@ -1,6 +1,6 @@
 {
   "name": "meridian-desktop",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "private": true,
   "description": "Meridian Windows world clock and time conversion tools",
   "author": "Along-me",
@@ -17,7 +17,7 @@
     "start": "node desktop/prepare.cjs && node node_modules/electron/cli.js .",
     "test:desktop": "node desktop/prepare.cjs && node node_modules/electron/cli.js . --smoke-test",
     "test": "node scripts/test.cjs",
-    "pack": "node desktop/prepare.cjs && node node_modules/electron-builder/cli.js --win --x64 --dir",
+    "pack": "node desktop/prepare.cjs && node node_modules/electron-builder/cli.js --win --x64 --dir --config.directories.output=release/local",
     "dist": "node desktop/prepare.cjs && node node_modules/electron-builder/cli.js --win nsis --x64 --publish never"
   },
   "devDependencies": {
@@ -41,7 +41,7 @@
     ],
     "electronDist": "node_modules/electron/dist",
     "directories": {
-      "output": "release",
+      "output": "release/installers",
       "buildResources": "desktop/assets"
     },
     "files": [
@@ -53,6 +53,8 @@
       "desktop/widget-drag.cjs",
       "desktop/widget-geometry.cjs",
       "desktop/widget-visibility.cjs",
+      "desktop/widget-edge.cjs",
+      "desktop/widget-edge-native.test.cjs",
       "desktop/factory-defaults.json",
       "desktop/login-items.cjs",
       "desktop/preload.cjs",

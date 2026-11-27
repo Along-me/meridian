@@ -1,6 +1,10 @@
-function createWidgetDrag({getWindow,getCursor,getSize,onMove=()=>{},canDrag,schedule=setInterval,cancel=clearInterval}){
+function createWidgetDrag({getWindow,getCursor,getSize,onMove=()=>{},onDrop=()=>{},canDrag,schedule=setInterval,cancel=clearInterval}){
   let operation=null,timer=null;
-  function end(){if(timer!==null)cancel(timer);timer=null;operation=null}
+  function end(){
+    const finished=operation;
+    if(timer!==null)cancel(timer);timer=null;operation=null;
+    if(finished?.moved)onDrop(finished);
+  }
   function step(){
     const window=getWindow();
     if(!operation||!window||window.isDestroyed()||window!==operation.window||!canDrag()){end();return}

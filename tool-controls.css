@@ -17,3 +17,5 @@
 .quick-launch-key-control .field{flex:1;min-width:100px}
 .tool-shortcut-control{flex-basis:490px}
 .quick-launch-key-control>button{white-space:nowrap;padding-left:8px;padding-right:8px}
+.color-priority-help>.color-priority-tip{display:none!important}
+.settings-floating-tip{position:fixed;z-index:100;box-sizing:border-box;padding:11px 13px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--text);box-shadow:0 6px 22px var(--shadow);font:11px/1.8 'Segoe UI','Microsoft YaHei',sans-serif;white-space:normal;overflow-wrap:anywhere;overflow-y:auto;pointer-events:none}

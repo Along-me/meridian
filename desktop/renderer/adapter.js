@@ -49,7 +49,6 @@
     draggable.addEventListener('pointerdown',event=>{
       if(event.button!==0||state.locked||dragPointer!==null||event.target.closest('button,a,input,select,textarea,[contenteditable]'))return;
       event.preventDefault();hideWidgetTooltip();dragPointer=event.pointerId;draggable.classList.add('widget-dragging');
-      const pending=widgetHeaderDelays.get(draggable);if(pending){clearTimeout(pending.timer);pending.timer=null}
       draggable.setPointerCapture(event.pointerId);desktop.beginDrag();
     });
     for(const event of ['pointerup','pointercancel','lostpointercapture'])draggable.addEventListener(event,finishDrag);
@@ -57,8 +56,7 @@
     const header=document.querySelector('#widget .widget-top');
     const actions=header.querySelector('.widget-header-actions');actions.classList.add('desktop-widget-actions');
     const manage=document.createElement('button');manage.className='ghost';manage.type='button';manage.setAttribute('aria-label','打开管理界面');manage.title='打开管理界面';manage.innerHTML=icon('settings');manage.onclick=()=>desktop.openManager();
-    const close=document.createElement('button');close.className='ghost';close.type='button';close.setAttribute('aria-label','隐藏桌面挂件');close.title='隐藏挂件';close.innerHTML=icon('close');close.onclick=()=>desktop.hideWidget();
-    actions.append(manage,document.getElementById('preview-header-hide'),document.getElementById('preview-pin'),close);header.appendChild(actions);setupWidgetHeaderHints(header);
+    actions.append(manage,document.getElementById('preview-header-hide'),document.getElementById('preview-edge-hide'),document.getElementById('preview-pin'));header.appendChild(actions);setupWidgetHeaderHints(header);
     header.addEventListener('dblclick',event=>{if(!event.target.closest('button'))desktop.openManager()});
     const refreshHoverPosition=()=>requestAnimationFrame(()=>{tooltipSignature='';refreshWidgetTooltip(new Date());refreshWidgetControlTooltip()});
     desktop.onResized(refreshHoverPosition);desktop.onMoved(refreshHoverPosition);

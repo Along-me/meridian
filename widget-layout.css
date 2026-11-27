@@ -37,7 +37,6 @@
   background:rgb(var(--w-surface-rgb) / .96); opacity:0; visibility:hidden; pointer-events:none;
   transform:translateY(-5px); transition:opacity .16s ease,transform .16s ease,visibility .16s;
 }
-.widget.auto-hide-header.header-revealed>.widget-top { opacity:1; visibility:visible; pointer-events:auto; transform:translateY(0); }
 @media(prefers-reduced-motion:reduce){.widget.auto-hide-header>.widget-top{transition:none}}
 .widget-content {
   flex:1; min-height:0; max-height:none; padding:0 14px 9px;

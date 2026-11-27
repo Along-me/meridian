@@ -18,7 +18,11 @@ app.setAppUserModelId('com.meridian.worldclock');
 let manager,widget,tray,tooltip,quitting=false,saveTimer,trayClickTimer,lastTrayDoubleClick=0,pendingTool=null,appliedPinned=null;
 const widgetGeometry=require('./widget-geometry.cjs').createWidgetGeometry({getWindow:()=>widget,getWorkArea:bounds=>screen.getDisplayMatching(bounds).workArea});
 const widgetVisibility=require('./widget-visibility.cjs').createWidgetVisibility({getWindow:()=>widget,locate:locateWidget});
-const widgetDrag=require('./widget-drag.cjs').createWidgetDrag({getWindow:()=>widget,getCursor:()=>screen.getCursorScreenPoint(),getSize:()=>widgetGeometry.size(),onMove:()=>widgetGeometry.moved(),canDrag:()=>!!store.state&&!store.state.locked&&store.state.enabled});
+const widgetEdge=require('./widget-edge.cjs');
+const edgeState={edge:null,hidden:false,visibleBounds:null};
+let smokeCursor=null;
+const widgetDrag=require('./widget-drag.cjs').createWidgetDrag({getWindow:()=>widget,getCursor:()=>screen.getCursorScreenPoint(),getSize:()=>widgetGeometry.size(),onMove:()=>widgetGeometry.moved(),onDrop:()=>commitWidgetDrop(),canDrag:()=>!!store.state&&!store.state.locked&&store.state.enabled});
+const edgeHover=widgetEdge.createEdgeHover({getWindow:()=>widget,getCursor:()=>smoke&&smokeCursor?smokeCursor:screen.getCursorScreenPoint(),getDock:()=>edgeState,getArea:edgeArea,isDragging:()=>widgetDrag.isDragging(),hide:hideEdgeWidget,reveal:revealEdgeWidget});
 const storePath=path.join(app.getPath('userData'),'settings.json');
 const currencyService=require('./currency-service.cjs').createCurrencyService({file:path.join(app.getPath('userData'),'currency-rates.json')});
 let hasUserConfig=false;
@@ -65,6 +69,8 @@ function cleanState(value){
   for(const key of ['appTheme'])next[key]=['system','light','dark'].includes(value[key])?value[key]:'system';
   next.widgetTheme=['light','dark'].includes(value.widgetTheme)?value.widgetTheme:['light','dark'].includes(value.theme)?value.theme:'dark';
   next.widgetStyle=['classic','compact','cards','analog'].includes(value.widgetStyle)?value.widgetStyle:'classic';
+  next.edgeSnap=value.edgeSnap!==false;
+  next.edgeHide=value.edgeHide===true;
   next.listLayouts=Object.fromEntries(['classic','compact'].map(style=>[style,value.listLayouts?.[style]==='vertical'?'vertical':'horizontal']));
   next.backgroundOpacity=clamp(Number.isFinite(value.backgroundOpacity)?value.backgroundOpacity:Number.isFinite(value.opacity)?value.opacity:100,0,100);
   next.foregroundOpacity=clamp(Number.isFinite(value.foregroundOpacity)?value.foregroundOpacity:100,0,100);
@@ -87,17 +93,72 @@ function clampBounds(bounds,fallback){
   const display=screen.getDisplayMatching({x:Math.round(merged.x),y:Math.round(merged.y),width:Math.round(merged.width),height:Math.round(merged.height)}).workArea;
   return {x:Math.round(clamp(merged.x,display.x,display.x+Math.max(0,display.width-merged.width))),y:Math.round(clamp(merged.y,display.y,display.y+Math.max(0,display.height-merged.height))),width:Math.round(merged.width),height:Math.round(merged.height)};
 }
+function clearEdgeHideTimer(){edgeHover.reset()}
+function stopEdgeRevealMonitor(){edgeHover.stop()}
+function edgeArea(bounds){return screen.getDisplayMatching(bounds).workArea}
+function revealEdgeWidget(){
+  clearEdgeHideTimer();
+  if(!edgeState.hidden||!alive(widget))return;
+  const bounds=edgeState.visibleBounds;
+  edgeState.hidden=false;
+  if(bounds)widget.setBounds(bounds,false);
+  edgeState.visibleBounds=bounds?{...bounds}:null;
+  // Re-assert topmost after the native window moves back into view. This keeps
+  // edge hiding compatible with the independent "always on top" setting.
+  // On Windows, moving a transparent window back from offscreen can leave its
+  // compositor surface occluded. Show without taking keyboard focus and ask
+  // Chromium to repaint rather than waiting for a user click to activate it.
+  widget.hide();widget.showInactive();
+  widget.webContents.invalidate();
+  syncWidgetTopmost(true);
+  for(const delay of [100,250,500])setTimeout(()=>{if(alive(widget)&&!edgeState.hidden)syncWidgetTopmost(true)},delay);
+  scheduleEdgeHide();
+  persistSoon();
+}
+function hideEdgeWidget(){
+  clearEdgeHideTimer();
+  if(!alive(widget)||!store.state?.enabled||!store.state.edgeHide||!edgeState.edge||widgetDrag.isDragging())return;
+  const bounds=widget.getBounds(),area=edgeArea(bounds),hidden=widgetEdge.hiddenBounds(bounds,area,edgeState.edge);
+  edgeState.visibleBounds={...bounds};edgeState.hidden=true;
+  widget.setMinimumSize(1,1);
+  widget.setBounds(hidden,false);store.widgetBounds={...bounds};persistSoon();
+}
+function scheduleEdgeHide(){
+  if(!store.state?.enabled||!store.state.edgeHide||!edgeState.edge){edgeHover.stop();return}
+  edgeHover.start();
+}
+function commitWidgetDrop(){
+  if(!alive(widget)||!store.state?.enabled)return;
+  if(edgeState.hidden)revealEdgeWidget();
+  const current=widget.getBounds(),result=widgetEdge.snapToEdges(current,edgeArea(current));
+  if(store.state.edgeSnap&&result.changed){
+    widget.setBounds(result.bounds,false);widgetGeometry.moved();edgeState.visibleBounds=widget.getBounds();
+  }else edgeState.visibleBounds={...current};
+  edgeState.edge=result.edge;
+  if(!edgeState.edge)clearEdgeHideTimer();else scheduleEdgeHide();
+  persistSoon();
+}
+function refreshEdgeBehavior(){
+  if(!alive(widget)||!store.state?.enabled)return;
+  const current=edgeState.hidden?edgeState.visibleBounds:widget.getBounds(),result=widgetEdge.snapToEdges(current,edgeArea(current));
+  edgeState.edge=result.edge;
+  if(store.state.edgeSnap&&result.changed&&!edgeState.hidden){widget.setBounds(result.bounds,false);widgetGeometry.moved();edgeState.visibleBounds=widget.getBounds()}
+  if(!store.state.edgeHide){edgeHover.stop();if(edgeState.hidden)revealEdgeWidget();return}
+  scheduleEdgeHide();
+}
 function showManager(){
   if(!alive(manager))return;
   if(manager.isMinimized())manager.restore();
   manager.show();manager.focus();
 }
 function locateWidget(window){
+  if(edgeState.hidden)revealEdgeWidget();
   const bounds=window.getBounds(),placed=clampBounds(bounds,bounds);
   if(placed.x!==bounds.x||placed.y!==bounds.y){const size=widgetGeometry.size();window.setBounds({x:placed.x,y:placed.y,width:size.width,height:size.height},false);widgetGeometry.moved()}
 }
 function showWidget({focus=true}={}){
   if(!store.state||!alive(widget))return;
+  revealEdgeWidget();
   store.state.enabled=true;updateNativeState();syncWidgetTopmost(true);widgetVisibility.show({focus});
 }
 function toggleWidget(){if(store.state?.enabled&&widgetVisibility.isShowing())setEnabled(false);else showWidget()}
@@ -111,18 +172,23 @@ function openTool(tool){
 function broadcastState(exclude){for(const window of [manager,widget])if(alive(window)&&window.webContents.id!==exclude)send(window,'meridian:state',store.state);}
 function syncWidgetTopmost(force=false){
   if(!alive(widget)||!store.state)return;
-  const pinned=!!store.state.pinned;if(force||appliedPinned!==pinned){widget.setAlwaysOnTop(pinned,'floating');appliedPinned=pinned}
+  const pinned=!!store.state.pinned;if(force||appliedPinned!==pinned){widget.setAlwaysOnTop(pinned);appliedPinned=pinned}
   tooltip?.raise();
 }
 function updateNativeState(exclude,reveal=false){
   if(!store.state||!alive(widget))return;
+  if(!store.state.enabled)revealEdgeWidget();
   if(store.state.locked||!store.state.enabled)widgetDrag.end();
-  widget.setMinimumSize(110,1);
+  widget.setMinimumSize(edgeState.hidden?1:110,1);
   if(!store.state.enabled)widget.hide();else if(reveal&&!smoke)widgetVisibility.show({focus:false});
-  syncWidgetTopmost();broadcastState(exclude);updateTray();persistSoon();
+  syncWidgetTopmost();refreshEdgeBehavior();broadcastState(exclude);updateTray();persistSoon();
 }
 function setEnabled(enabled){if(!store.state)return;store.state.enabled=enabled;updateNativeState(undefined,enabled);}
-function fitWidget(size){widgetGeometry.fit(size)}
+function fitWidget(size){
+  if(edgeState.hidden)revealEdgeWidget();
+  widgetGeometry.fit(size);
+  if(store.state?.edgeHide)refreshEdgeBehavior();
+}
 function updateTray(){
   if(!tray)return;
   tray.setContextMenu(Menu.buildFromTemplate([
@@ -144,31 +210,33 @@ function secureWindow(window){
 function createWidgetWindow(bounds){
   widgetDrag.end();
   const previous=widget,previousTooltip=tooltip;widgetGeometry.reset();appliedPinned=null;
-  if(alive(previous)){store.widgetBounds=previous.getBounds();previous.destroy()}
+  if(alive(previous)){store.widgetBounds=edgeState.hidden&&edgeState.visibleBounds?{...edgeState.visibleBounds}:previous.getBounds();previous.destroy()}
   if(previousTooltip&&!previousTooltip.window.isDestroyed())previousTooltip.window.destroy();
   const webPreferences={preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false};
-  const current=widget=new BrowserWindow({...bounds,minWidth:110,minHeight:1,show:false,frame:false,transparent:true,backgroundColor:'#00000000',hasShadow:false,roundedCorners:true,resizable:false,maximizable:false,minimizable:false,skipTaskbar:true,title:'Meridian 桌面挂件',icon:path.join(__dirname,'assets','icon.ico'),webPreferences});
+  const current=widget=new BrowserWindow({...bounds,alwaysOnTop:!!store.state?.pinned,minWidth:110,minHeight:1,show:false,frame:false,transparent:true,backgroundColor:'#00000000',hasShadow:false,roundedCorners:true,resizable:false,maximizable:false,minimizable:false,skipTaskbar:true,title:'Meridian 桌面挂件',icon:path.join(__dirname,'assets','icon.ico'),webPreferences});
   secureWindow(current);
   current.setHasShadow(false);
 
 
   const currentTooltip=tooltip=require('./tooltip-window.cjs')(current);
-  for(const event of ['hide','closed'])current.on(event,()=>{widgetDrag.end();currentTooltip.hide()});
+  for(const event of ['hide','closed'])current.on(event,()=>{widgetDrag.end();clearEdgeHideTimer();stopEdgeRevealMonitor();currentTooltip.hide()});
   current.on('blur',()=>widgetDrag.end());
   let tooltipPosition=current.getPosition();
   current.on('move',()=>{
     const position=current.getPosition();
     if(position.some((value,index)=>value!==tooltipPosition[index])){
       currentTooltip.hide();
-      if(widgetDrag.isDragging())widgetGeometry.moved();
+      if(widgetDrag.isDragging()){
+        widgetGeometry.moved();edgeState.edge=null;edgeState.hidden=false;edgeState.visibleBounds=current.getBounds();clearEdgeHideTimer();
+      }
       const bounds=current.getBounds();send(current,'meridian:moved',{x:bounds.x,y:bounds.y});
     }
     tooltipPosition=position;
   });
   current.on('close',event=>{if(!quitting){event.preventDefault();setEnabled(false)}});
-  current.on('move',()=>{store.widgetBounds=current.getBounds();persistSoon()});
+  current.on('move',()=>{store.widgetBounds=edgeState.hidden&&edgeState.visibleBounds?{...edgeState.visibleBounds}:current.getBounds();persistSoon()});
   current.on('resize',()=>{
-    const bounds=current.getBounds();store.widgetBounds=bounds;
+    const bounds=current.getBounds();if(!edgeState.hidden)edgeState.visibleBounds={...bounds};store.widgetBounds=edgeState.hidden&&edgeState.visibleBounds?{...edgeState.visibleBounds}:bounds;
     send(current,'meridian:resized',{width:bounds.width,height:bounds.height});persistSoon();
   });
   current.webContents.on('context-menu',()=>Menu.buildFromTemplate([
@@ -214,7 +282,7 @@ ipcMain.on('meridian:renderer-ready',(event,state)=>{
 ipcMain.on('meridian:save-state',(event,state)=>{
   if(!trusted(event))return;const next=cleanState(state);if(!next)return;const wasEnabled=store.state?.enabled;store.state=next;updateNativeState(event.sender.id,wasEnabled===false&&next.enabled);
 });
-ipcMain.on('meridian:begin-drag',event=>{if(alive(widget)&&event.sender.id===widget.webContents.id)widgetDrag.begin()});
+ipcMain.on('meridian:begin-drag',event=>{if(alive(widget)&&event.sender.id===widget.webContents.id){revealEdgeWidget();widgetDrag.begin()}});
 ipcMain.on('meridian:end-drag',event=>{if(alive(widget)&&event.sender.id===widget.webContents.id)widgetDrag.end()});
 ipcMain.on('meridian:open-manager',event=>{if(trusted(event))showManager()});
 ipcMain.on('meridian:titlebar-theme',(event,theme)=>{
@@ -224,9 +292,9 @@ ipcMain.on('meridian:titlebar-theme',(event,theme)=>{
 });
 ipcMain.on('meridian:hide-widget',event=>{if(trusted(event))setEnabled(false)});
 ipcMain.on('meridian:show-widget',event=>{if(trusted(event))showWidget()});
-ipcMain.on('meridian:show-tooltip',(event,data)=>{if(alive(widget)&&event.sender.id===widget.webContents.id)tooltip?.show(data)});
+ipcMain.on('meridian:show-tooltip',(event,data)=>{if(alive(widget)&&!edgeState.hidden&&event.sender.id===widget.webContents.id)tooltip?.show(data)});
 ipcMain.on('meridian:hide-tooltip',event=>{if(alive(widget)&&event.sender.id===widget.webContents.id)tooltip?.hide()});
-ipcMain.on('meridian:tooltip-measured',(event,height)=>{if(tooltip&&!tooltip.window.isDestroyed()&&event.sender.id===tooltip.window.webContents.id&&Number.isFinite(height))tooltip.measure(Math.max(40,height))});
+ipcMain.on('meridian:tooltip-measured',(event,measurement)=>{if(tooltip&&!tooltip.window.isDestroyed()&&event.sender.id===tooltip.window.webContents.id)tooltip.measure(measurement)});
 ipcMain.on('meridian:fit-widget',(event,size)=>{if(alive(widget)&&event.sender.id===widget.webContents.id)fitWidget(size)});
 ipcMain.on('meridian:widget-size',(event,size)=>{if(trusted(event))fitWidget(size)});
 for(const [channel,action] of [['read',()=>currencyService.read()],['save',patch=>currencyService.save(patch)],['refresh',()=>currencyService.refresh()]]){
@@ -253,7 +321,7 @@ ipcMain.handle('meridian:set-preferences',(event,patch)=>{
 });
 
 app.on('second-instance',showApplication);
-app.on('before-quit',()=>{quitting=true;updates.dispose();widgetDrag.end();quickLaunch.release();clearTimeout(saveTimer);clearTimeout(trayClickTimer);try{persist()}catch(_){}if(tray){tray.destroy();tray=null;}});
+app.on('before-quit',()=>{quitting=true;updates.dispose();widgetDrag.end();edgeHover.stop();quickLaunch.release();clearTimeout(saveTimer);clearTimeout(trayClickTimer);try{persist()}catch(_){}if(tray){tray.destroy();tray=null;}});
 app.on('window-all-closed',()=>{if(quitting)app.quit()});
 app.on('activate',showApplication);
 app.whenReady().then(async()=>{
@@ -263,5 +331,5 @@ app.whenReady().then(async()=>{
   createWindows();
   updates.start();
   if(!smoke&&!preview)quickLaunch.restore(store.preferences.toolShortcuts);
-  if(smoke){try{await require('./smoke.test.cjs')({app,manager,widget,getWidget:()=>widget,getState:()=>store.state,storePath});console.log('MERIDIAN_SMOKE_OK');app.exit(0)}catch(error){console.error(error.stack);app.exit(1)}}
+  if(smoke){try{await require('./smoke.test.cjs')({app,manager,widget,getWidget:()=>widget,getState:()=>store.state,storePath});await require('./widget-edge-native.test.cjs')({manager,widget,getState:()=>store.state,getDock:()=>edgeState,setCursor:p=>{smokeCursor=p},refresh:refreshEdgeBehavior});console.log('MERIDIAN_SMOKE_OK');app.exit(0)}catch(error){console.error(error.stack);app.exit(1)}}
 }).catch(error=>{console.error(error);app.exit(1)});

@@ -21,7 +21,7 @@ const server=http.createServer(async(req,res)=>{
       json(200,data);return;
     }
     if(!['GET','HEAD'].includes(req.method)){res.writeHead(405);res.end();return}
-    const name=decodeURIComponent(url.pathname).replace(/^\/+/,''),file=path.resolve(workspace,name||'时区助手/prototype.html');
+    const name=decodeURIComponent(url.pathname).replace(/^\/+/,''),file=path.resolve(workspace,name||'MeridianWidget/prototype.html');
     const relative=path.relative(workspace,file);
     if(relative.startsWith('..')||path.isAbsolute(relative)||relative.split(path.sep).some(p=>p.startsWith('.')||['node_modules','release'].includes(p))){res.writeHead(403);res.end();return}
     const stat=fs.statSync(file);if(!stat.isFile()){res.writeHead(404);res.end();return}
@@ -33,5 +33,5 @@ const server=http.createServer(async(req,res)=>{
     json(error.code==='ENOENT'?404:denied?503:400,{error:error.code==='ENOENT'?'文件不存在':denied?'预览服务没有项目文件写入权限。请重新启动预览服务后重试；浏览器中的修改已暂存。':error.message});
   }
 });
-server.listen(port,'127.0.0.1',()=>console.log('Meridian preview: http://127.0.0.1:'+port+'/时区助手/prototype.html'));
+server.listen(port,'127.0.0.1',()=>console.log('Meridian preview: http://127.0.0.1:'+port+'/MeridianWidget/prototype.html'));
 server.on('error',error=>{console.error(error.message);process.exitCode=1});
