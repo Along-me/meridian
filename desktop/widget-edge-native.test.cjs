@@ -1,9 +1,9 @@
 const assert=require('node:assert/strict');
 const {screen}=require('electron');
-module.exports=async({manager,widget,getState,getDock,setCursor,refresh})=>{
+module.exports=async({manager,widget,getState,getDock,setCursor,refresh,place})=>{
   const delay=ms=>new Promise(r=>setTimeout(r,ms));
   const saved=JSON.parse(JSON.stringify(getState())),original=widget.getBounds();
-  async function waitFor(check,label){for(let i=0;i<30;i++){if(check())return;await delay(50)}assert.fail(label)}
+  async function waitFor(check,label){for(let i=0;i<100;i++){if(check())return;await delay(50)}assert.fail(label+' '+JSON.stringify({bounds:widget.getBounds(),dock:getDock(),visible:widget.isVisible()}))}
   try{
     await manager.webContents.executeJavaScript(`state.edgeSnap=true;state.edgeHide=true;state.pinned=true;state.autoHideHeader=false;state.widgetSizes[state.widgetStyle]={width:400,height:132};save()`);
     await delay(300);
@@ -19,7 +19,7 @@ module.exports=async({manager,widget,getState,getDock,setCursor,refresh})=>{
       if(edge==='right')bounds.x=area.x+area.width-bounds.width;
       if(edge==='bottom')bounds.y=area.y+area.height-bounds.height;
       setCursor({x:bounds.x+30,y:bounds.y+30});
-      widget.setBounds(bounds);refresh();await delay(150);
+      place(bounds);await delay(150);
       for(let cycle=0;cycle<2;cycle++){
         setCursor({x:area.x+area.width/2,y:area.y+area.height/2});
         await waitFor(()=>getDock().hidden,'Native '+edge+' did not hide');

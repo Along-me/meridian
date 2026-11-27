@@ -13,6 +13,7 @@ const platform=platformOptions();
 app.setName('Meridian');
 const smoke=process.argv.includes('--smoke-test');
 const preview=process.argv.includes('--preview-test');
+if(smoke&&platform.mac)app.disableHardwareAcceleration();
 if(smoke||preview)app.setPath('userData',process.env.MERIDIAN_TEST_PROFILE||path.join(app.getPath('temp'),'meridian-test-'+process.pid));
 const locked=app.requestSingleInstanceLock();
 if(!locked){app.quit();return;}
@@ -336,5 +337,5 @@ app.whenReady().then(async()=>{
   createWindows();
   updates.start();
   if(!smoke&&!preview)quickLaunch.restore(store.preferences.toolShortcuts);
-  if(smoke){try{await require(platform.mac?'./mac-smoke.test.cjs':'./smoke.test.cjs')({app,manager,widget,getWidget:()=>widget,getState:()=>store.state,storePath});await require('./widget-edge-native.test.cjs')({manager,widget,getState:()=>store.state,getDock:()=>edgeState,setCursor:p=>{smokeCursor=p},refresh:refreshEdgeBehavior});console.log('MERIDIAN_SMOKE_OK');app.exit(0)}catch(error){console.error(error.stack);app.exit(1)}}
+  if(smoke){try{await require(platform.mac?'./mac-smoke.test.cjs':'./smoke.test.cjs')({app,manager,widget,getWidget:()=>widget,getState:()=>store.state,storePath});await require('./widget-edge-native.test.cjs')({manager,widget,getState:()=>store.state,getDock:()=>edgeState,setCursor:p=>{smokeCursor=p},refresh:refreshEdgeBehavior,place:bounds=>{widget.setBounds(bounds);widgetGeometry.moved();refreshEdgeBehavior()}});console.log('MERIDIAN_SMOKE_OK');app.exit(0)}catch(error){console.error(error.stack);app.exit(1)}}
 }).catch(error=>{console.error(error);app.exit(1)});
