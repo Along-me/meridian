@@ -77,7 +77,7 @@
   document.addEventListener('scroll',event=>{if(openPicker&&!openPicker.popup.contains(event.target))openPicker.close()},true);
   window.addEventListener('resize',()=>openPicker?.close());
   function normalizeTypedShortcut(value){
-    const modifiers={ctrl:'Control',control:'Control',alt:'Alt',shift:'Shift',win:'Super',windows:'Super',super:'Super',meta:'Super'},keys={space:'Space',tab:'Tab',enter:'Enter',escape:'Escape',esc:'Escape',up:'Up',down:'Down',left:'Left',right:'Right',home:'Home',end:'End',pageup:'PageUp',pagedown:'PageDown',insert:'Insert',delete:'Delete'};
+    const modifiers={ctrl:'Control',control:'Control',alt:'Alt',option:'Alt',shift:'Shift',win:'Super',windows:'Super',super:'Super',meta:'Super',cmd:'Super',command:'Super'},keys={space:'Space',tab:'Tab',enter:'Enter',escape:'Escape',esc:'Escape',up:'Up',down:'Down',left:'Left',right:'Right',home:'Home',end:'End',pageup:'PageUp',pagedown:'PageDown',insert:'Insert',delete:'Delete'};
     return value.trim().split('+').map(part=>{const text=part.trim();return modifiers[text.toLowerCase()]||keys[text.toLowerCase()]||text.toUpperCase()}).join('+');
   }
   for(const input of document.querySelectorAll('[data-shortcut-tool]')){

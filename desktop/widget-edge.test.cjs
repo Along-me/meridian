@@ -31,6 +31,7 @@ point={x:800,y:700};dragging=true;advance(2000);assert.equal(hideCount,3);
 dragging=false;visible=false;advance(2000);assert.equal(hideCount,3,'Respect OS-hidden windows');
 visible=true;advance(0);advance(300);point={x:100,y:250};advance(0);point={x:800,y:700};advance(0);advance(400);assert.equal(hideCount,3,'Re-entry cancels the previous leave delay');
 hover.stop();assert.equal(cancels,1);
+visible=false;dock.hidden=true;point={x:2,y:250};hover.tick();assert.equal(dock.hidden,false,'macOS can recall an intentionally hidden native window');visible=true;
 const secondArea={x:-1920,y:-200,width:1920,height:1080};
 assert.equal(snapToEdges({x:-1910,y:100,width:240,height:330},secondArea).bounds.x,-1920);
 assert.equal(hiddenBounds({x:-1920,y:100,width:240,height:330},secondArea,'left').x,-2154);

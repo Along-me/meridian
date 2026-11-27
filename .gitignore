@@ -7,6 +7,8 @@ desktop/test-profile/
 desktop/assets/icon.ico
 desktop/assets/icon.png
 desktop/assets/tray.png
+desktop/assets/trayTemplate.png
+desktop/assets/trayTemplate@2x.png
 .env
 .env.*
 !.env.example

@@ -7,6 +7,8 @@ const {createQuickLaunch,requestedToolShortcuts,storedToolShortcuts}=require('./
 const ShortcutRegistry=require('../tool-shortcuts.js');
 const quickLaunch=createQuickLaunch(globalShortcut,tool=>openTool(tool));
 const factory=require('./factory-defaults.json');
+const {platformOptions,configureWidgetSpaces}=require('./platform.cjs');
+const platform=platformOptions();
 
 app.setName('Meridian');
 const smoke=process.argv.includes('--smoke-test');
@@ -14,7 +16,7 @@ const preview=process.argv.includes('--preview-test');
 if(smoke||preview)app.setPath('userData',process.env.MERIDIAN_TEST_PROFILE||path.join(app.getPath('temp'),'meridian-test-'+process.pid));
 const locked=app.requestSingleInstanceLock();
 if(!locked){app.quit();return;}
-app.setAppUserModelId('com.meridian.worldclock');
+if(process.platform==='win32')app.setAppUserModelId('com.meridian.worldclock');
 let manager,widget,tray,tooltip,quitting=false,saveTimer,trayClickTimer,lastTrayDoubleClick=0,pendingTool=null,appliedPinned=null;
 const widgetGeometry=require('./widget-geometry.cjs').createWidgetGeometry({getWindow:()=>widget,getWorkArea:bounds=>screen.getDisplayMatching(bounds).workArea});
 const widgetVisibility=require('./widget-visibility.cjs').createWidgetVisibility({getWindow:()=>widget,locate:locateWidget});
@@ -32,7 +34,7 @@ store.preferences.autoCheckUpdates=store.preferences.autoCheckUpdates!==false;
 store.preferences.toolShortcuts=storedToolShortcuts(store.preferences);delete store.preferences.quickLaunchEnabled;delete store.preferences.quickLaunchAccelerator;
 const rendererPath=path.join(__dirname,'app.html');
 const rendererUrl=pathToFileURL(rendererPath).href;
-const updates=require('./updates.cjs').createUpdates({updater:require('electron-updater').autoUpdater,version:app.getVersion(),supported:app.isPackaged&&!smoke&&!preview,getAutomatic:()=>store.preferences.autoCheckUpdates,notify:state=>send(manager,'meridian:update-state',state),beforeInstall:()=>{persist();quitting=true;widgetDrag.end();tooltip?.hide()},installFailed:()=>{quitting=false}});
+const updates=require('./updates.cjs').createUpdates({updater:require('electron-updater').autoUpdater,version:app.getVersion(),supported:app.isPackaged&&!platform.mac&&!smoke&&!preview,getAutomatic:()=>store.preferences.autoCheckUpdates,notify:state=>send(manager,'meridian:update-state',state),beforeInstall:()=>{persist();quitting=true;widgetDrag.end();tooltip?.hide()},installFailed:()=>{quitting=false}});
 
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 
@@ -48,7 +50,7 @@ function trusted(event){return [manager,widget].some(window=>alive(window)&&wind
 function send(window,channel,data){if(alive(window)&&!window.webContents.isLoading())window.webContents.send(channel,data);}
 function preferences(){
   const actual=app.isPackaged?readLoginItem(app,process.execPath):{launchAtLogin:false,startupBlocked:false};
-  return {...store.preferences,...quickLaunch.status(store.preferences.toolShortcuts),launchAtLogin:actual.launchAtLogin,startupBlocked:actual.startupBlocked,available:app.isPackaged,version:app.getVersion()};
+  return {...store.preferences,...quickLaunch.status(store.preferences.toolShortcuts),launchAtLogin:actual.launchAtLogin,startupBlocked:actual.startupBlocked,available:app.isPackaged,platform:process.platform,version:app.getVersion()};
 }
 function cleanState(value){
   if(!value||typeof value!=='object'||!Array.isArray(value.zones))return null;
@@ -108,7 +110,7 @@ function revealEdgeWidget(){
   // On Windows, moving a transparent window back from offscreen can leave its
   // compositor surface occluded. Show without taking keyboard focus and ask
   // Chromium to repaint rather than waiting for a user click to activate it.
-  widget.hide();widget.showInactive();
+  if(!platform.mac)widget.hide();widget.showInactive();
   widget.webContents.invalidate();
   syncWidgetTopmost(true);
   for(const delay of [100,250,500])setTimeout(()=>{if(alive(widget)&&!edgeState.hidden)syncWidgetTopmost(true)},delay);
@@ -120,6 +122,7 @@ function hideEdgeWidget(){
   if(!alive(widget)||!store.state?.enabled||!store.state.edgeHide||!edgeState.edge||widgetDrag.isDragging())return;
   const bounds=widget.getBounds(),area=edgeArea(bounds),hidden=widgetEdge.hiddenBounds(bounds,area,edgeState.edge);
   edgeState.visibleBounds={...bounds};edgeState.hidden=true;
+  if(platform.mac){tooltip?.hide();widget.hide();persistSoon();return}
   widget.setMinimumSize(1,1);
   widget.setBounds(hidden,false);store.widgetBounds={...bounds};persistSoon();
 }
@@ -172,7 +175,7 @@ function openTool(tool){
 function broadcastState(exclude){for(const window of [manager,widget])if(alive(window)&&window.webContents.id!==exclude)send(window,'meridian:state',store.state);}
 function syncWidgetTopmost(force=false){
   if(!alive(widget)||!store.state)return;
-  const pinned=!!store.state.pinned;if(force||appliedPinned!==pinned){widget.setAlwaysOnTop(pinned);appliedPinned=pinned}
+  const pinned=!!store.state.pinned;if(force||appliedPinned!==pinned){widget.setAlwaysOnTop(pinned,...(platform.mac?['floating']:[]));appliedPinned=pinned}
   tooltip?.raise();
 }
 function updateNativeState(exclude,reveal=false){
@@ -213,13 +216,14 @@ function createWidgetWindow(bounds){
   if(alive(previous)){store.widgetBounds=edgeState.hidden&&edgeState.visibleBounds?{...edgeState.visibleBounds}:previous.getBounds();previous.destroy()}
   if(previousTooltip&&!previousTooltip.window.isDestroyed())previousTooltip.window.destroy();
   const webPreferences={preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false};
-  const current=widget=new BrowserWindow({...bounds,alwaysOnTop:!!store.state?.pinned,minWidth:110,minHeight:1,show:false,frame:false,transparent:true,backgroundColor:'#00000000',hasShadow:false,roundedCorners:true,resizable:false,maximizable:false,minimizable:false,skipTaskbar:true,title:'Meridian 桌面挂件',icon:path.join(__dirname,'assets','icon.ico'),webPreferences});
+  const current=widget=new BrowserWindow({...bounds,...platform.widget,alwaysOnTop:!!store.state?.pinned,minWidth:110,minHeight:1,show:false,frame:false,transparent:true,backgroundColor:'#00000000',hasShadow:false,roundedCorners:true,resizable:false,maximizable:false,minimizable:false,skipTaskbar:true,title:'Meridian 桌面挂件',icon:path.join(__dirname,'assets',platform.icon),webPreferences});
+  configureWidgetSpaces(current);
   secureWindow(current);
   current.setHasShadow(false);
 
 
   const currentTooltip=tooltip=require('./tooltip-window.cjs')(current);
-  for(const event of ['hide','closed'])current.on(event,()=>{widgetDrag.end();clearEdgeHideTimer();stopEdgeRevealMonitor();currentTooltip.hide()});
+  for(const event of ['hide','closed'])current.on(event,()=>{widgetDrag.end();clearEdgeHideTimer();if(!platform.mac||!edgeState.hidden)stopEdgeRevealMonitor();currentTooltip.hide()});
   current.on('blur',()=>widgetDrag.end());
   let tooltipPosition=current.getPosition();
   current.on('move',()=>{
@@ -250,12 +254,12 @@ function createWidgetWindow(bounds){
   current.loadFile(rendererPath,{query:{window:'widget'}});
 }
 function createWindows(){
-  Menu.setApplicationMenu(null);
+  Menu.setApplicationMenu(platform.mac?Menu.buildFromTemplate([{label:'Meridian',submenu:[{role:'about'},{type:'separator'},{label:'打开管理界面',click:showManager},{type:'separator'},{role:'quit'}]},{role:'editMenu'},{role:'windowMenu'}]):null);
   const area=screen.getPrimaryDisplay().workArea;
   const mainDefaults={x:area.x+Math.max(0,(area.width-1180)/2),y:area.y+Math.max(0,(area.height-850)/2),width:Math.min(1180,area.width),height:Math.min(850,area.height)};
   const mainBounds=clampBounds(store.managerBounds,mainDefaults);
   const webPreferences={preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false};
-  manager=new BrowserWindow({...mainBounds,minWidth:820,minHeight:640,show:false,title:'Meridian · 时区助手',titleBarStyle:'hidden',titleBarOverlay:{color:'#1b1b1b',symbolColor:'#ededed',height:48},backgroundColor:'#202020',icon:path.join(__dirname,'assets','icon.ico'),webPreferences});
+  manager=new BrowserWindow({...mainBounds,...platform.manager,minWidth:820,minHeight:640,show:false,title:'Meridian · 时区助手',backgroundColor:'#202020',icon:path.join(__dirname,'assets',platform.icon),webPreferences});
   secureWindow(manager);
   manager.webContents.on('did-finish-load',()=>{if(pendingTool){send(manager,'meridian:open-tool',pendingTool);pendingTool=null;}});
   manager.on('close',event=>{if(!quitting){event.preventDefault();manager.hide()}});
@@ -263,13 +267,14 @@ function createWindows(){
   const widgetDefaults={x:area.x+area.width-300,y:area.y+60,width:250,height:330};
   const widgetBounds=clampBounds(store.widgetBounds,widgetDefaults);
   createWidgetWindow(widgetBounds);
-  const icon=nativeImage.createFromPath(path.join(__dirname,'assets','tray.png'));
+  const icon=nativeImage.createFromPath(path.join(__dirname,'assets',platform.mac?'trayTemplate.png':'tray.png'));
+  if(platform.mac)icon.setTemplateImage(true);
   tray=new Tray(icon);tray.setToolTip('Meridian · 时区助手');
   tray.on('double-click',()=>{clearTimeout(trayClickTimer);lastTrayDoubleClick=Date.now();showManager()});
   tray.on('click',()=>{if(Date.now()-lastTrayDoubleClick<400)return;clearTimeout(trayClickTimer);trayClickTimer=setTimeout(()=>showWidget(),250)});
   updateTray();
   manager.loadFile(rendererPath,{query:{window:'manager'}});
-  const startup=process.argv.includes('--autostart');
+  const startup=process.argv.includes('--autostart')||(platform.mac&&app.isPackaged&&app.getLoginItemSettings().wasOpenedAtLogin);
   manager.once('ready-to-show',()=>{if(!smoke&&(!startup||!store.preferences.startMinimized))showManager()});
 }
 
@@ -286,7 +291,7 @@ ipcMain.on('meridian:begin-drag',event=>{if(alive(widget)&&event.sender.id===wid
 ipcMain.on('meridian:end-drag',event=>{if(alive(widget)&&event.sender.id===widget.webContents.id)widgetDrag.end()});
 ipcMain.on('meridian:open-manager',event=>{if(trusted(event))showManager()});
 ipcMain.on('meridian:titlebar-theme',(event,theme)=>{
-  if(!alive(manager)||event.sender.id!==manager.webContents.id)return;
+  if(platform.mac||!alive(manager)||event.sender.id!==manager.webContents.id)return;
   const light=theme==='light';
   manager.setTitleBarOverlay({color:light?'#ededed':'#1b1b1b',symbolColor:light?'#252525':'#ededed',height:48});
 });
@@ -325,11 +330,11 @@ app.on('before-quit',()=>{quitting=true;updates.dispose();widgetDrag.end();edgeH
 app.on('window-all-closed',()=>{if(quitting)app.quit()});
 app.on('activate',showApplication);
 app.whenReady().then(async()=>{
-  if(!hasUserConfig&&app.isPackaged&&!smoke&&!preview&&store.preferences.launchAtLogin){
+  if(!platform.mac&&!hasUserConfig&&app.isPackaged&&!smoke&&!preview&&store.preferences.launchAtLogin){
     try{if(!readLoginItem(app,process.execPath).registered)setLoginItem(app,process.execPath,true)}catch(error){console.error('Could not apply factory startup preference:',error.message)}
   }
   createWindows();
   updates.start();
   if(!smoke&&!preview)quickLaunch.restore(store.preferences.toolShortcuts);
-  if(smoke){try{await require('./smoke.test.cjs')({app,manager,widget,getWidget:()=>widget,getState:()=>store.state,storePath});await require('./widget-edge-native.test.cjs')({manager,widget,getState:()=>store.state,getDock:()=>edgeState,setCursor:p=>{smokeCursor=p},refresh:refreshEdgeBehavior});console.log('MERIDIAN_SMOKE_OK');app.exit(0)}catch(error){console.error(error.stack);app.exit(1)}}
+  if(smoke){try{await require(platform.mac?'./mac-smoke.test.cjs':'./smoke.test.cjs')({app,manager,widget,getWidget:()=>widget,getState:()=>store.state,storePath});await require('./widget-edge-native.test.cjs')({manager,widget,getState:()=>store.state,getDock:()=>edgeState,setCursor:p=>{smokeCursor=p},refresh:refreshEdgeBehavior});console.log('MERIDIAN_SMOKE_OK');app.exit(0)}catch(error){console.error(error.stack);app.exit(1)}}
 }).catch(error=>{console.error(error);app.exit(1)});

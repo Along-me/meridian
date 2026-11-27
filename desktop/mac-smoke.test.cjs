@@ -1,0 +1,22 @@
+const assert=require('node:assert/strict');
+module.exports=async({app,manager,widget,getState,storePath})=>{
+  for(const window of [manager,widget])if(window.webContents.isLoading())await new Promise(resolve=>window.webContents.once('did-finish-load',resolve));
+  await new Promise(resolve=>setTimeout(resolve,400));
+  widget.showInactive();
+  assert.equal(process.platform,'darwin');
+  assert.equal(await manager.webContents.executeJavaScript(`document.body.classList.contains('desktop-mac')`),true);
+  assert.equal(await widget.webContents.executeJavaScript(`document.querySelectorAll('#widget .widget-row').length>0`),true);
+  assert.equal((await manager.webContents.executeJavaScript(`meridianDesktop.updateStatus()`)).supported,false,'Unsigned Mac builds use manual updates');
+  for(const tool of ['datetime','timestamp','comparison','currency'])assert.equal(await manager.webContents.executeJavaScript(`navigate('${tool}');currentPage`),tool);
+  await manager.webContents.executeJavaScript(`navigate('widgets');state.autoHideHeader=true;save();renderWidget()`);
+  await new Promise(resolve=>setTimeout(resolve,300));
+  assert.equal(await widget.webContents.executeJavaScript(`getComputedStyle(document.querySelector('#widget .widget-top')).visibility`),'hidden');
+  await widget.webContents.executeJavaScript(`showWidgetTooltip(document.querySelector('#widget [data-widget-zone]'))`);
+  const popup=require('electron').BrowserWindow.getAllWindows().find(window=>window.webContents.getURL().includes('/tooltip.html'));
+  for(let i=0;i<30&&!popup.isVisible();i++)await new Promise(resolve=>setTimeout(resolve,100));
+  assert.equal(popup.isVisible(),true);assert.match(await popup.webContents.executeJavaScript(`document.getElementById('tooltip').textContent`),/Asia\//);
+  await widget.webContents.executeJavaScript('hideWidgetTooltip()');assert.equal(popup.isVisible(),false);
+  manager.close();assert.equal(manager.isVisible(),false);assert.equal(widget.isDestroyed(),false);
+  assert(getState());assert(require('node:fs').existsSync(storePath));
+  console.log('Mac management window, tools, persistent header hiding, native tooltip and close-to-menu-bar smoke passed. '+app.getVersion());
+};

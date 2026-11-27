@@ -2,6 +2,7 @@ html,body{user-select:none}
 input,textarea,[data-copy],.result-time{user-select:text}
 body.desktop-manager .prototype-tag{color:var(--muted)}
 body.desktop-manager .appbar{padding-right:156px;border-bottom:0;-webkit-app-region:drag;user-select:none}
+body.desktop-manager.desktop-mac .appbar{padding-left:92px;padding-right:22px}
 body.desktop-manager .appbar-actions,body.desktop-manager .appbar select,body.desktop-manager .appbar button{-webkit-app-region:no-drag}
 body.desktop-manager .identity{display:none}
 body.desktop-manager [data-page=packaging],body.desktop-manager #page-packaging{display:none!important}

@@ -2,6 +2,8 @@
 
 Windows 桌面时钟与日常转换工具。
 
+macOS 未签名测试版单独提供 Apple 芯片和 Intel 下载，安装与限制见 [Mac 测试说明](docs/mac-testing.md)。
+
 - 多时区桌面挂件：多种样式、别称、独立配色、透明度、置顶和位置锁定。
 - 日期时间、时间戳双向转换，时间对照表及自定义场景时间对照。
 - 货币转换：可切换汇率源、手动导入、最近 10 天缓存与固定参考汇率兜底。
@@ -36,6 +38,7 @@ npm start
 - `npm run pack`：免安装目录包，固定输出到 `release/local/win-unpacked/`。
 - 双击该固定目录的 `Meridian.exe` 即可运行，无需安装。
 - `npm run dist`：Windows 安装包和更新文件，输出到 `release/installers/`。
+- `npm run dist:mac`：在 macOS 上生成 Apple 芯片和 Intel 的未签名测试包，输出到 `release/mac-test/`。GitHub 的 “Mac unsigned test” 工作流分别原生验证两个架构并发布独立预发布测试版。
 - `release/installers/` 内保留当前版本的 `.exe`、同名 `.blockmap` 和配套 `latest.yml`。
 - 不再为每次修复另建日期目录；重新构建前退出该目录中的程序。
 

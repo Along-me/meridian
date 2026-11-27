@@ -23,7 +23,8 @@ module.exports=async({manager,widget,getState,getDock,setCursor,refresh})=>{
       for(let cycle=0;cycle<2;cycle++){
         setCursor({x:area.x+area.width/2,y:area.y+area.height/2});
         await waitFor(()=>getDock().hidden,'Native '+edge+' did not hide');
-        assert(edge==='top'?widget.getBounds().y<area.y:edge==='left'?widget.getBounds().x<area.x:edge==='right'?widget.getBounds().x>bounds.x:widget.getBounds().y>bounds.y);
+        if(process.platform==='darwin')assert.equal(widget.isVisible(),false);
+        else assert(edge==='top'?widget.getBounds().y<area.y:edge==='left'?widget.getBounds().x<area.x:edge==='right'?widget.getBounds().x>bounds.x:widget.getBounds().y>bounds.y);
         setCursor({x:edge==='right'?area.x+area.width-2:bounds.x+2,y:edge==='bottom'?area.y+area.height-2:bounds.y+2});
         await waitFor(()=>!getDock().hidden,'Native '+edge+' did not reveal');
         assert.equal(widget.getBounds().width>100,true);assert.equal(widget.getBounds().height>50,true);

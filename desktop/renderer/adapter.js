@@ -7,6 +7,12 @@
   save=()=>{originalSave();if(!receiving)desktop.saveState(state)};
   document.title=widgetMode?'Meridian 桌面挂件':'Meridian · 时区助手';
   document.body.classList.add(widgetMode?'desktop-widget':'desktop-manager');
+  const mac=desktop.initial.preferences.platform==='darwin';
+  if(mac){
+    document.body.classList.add('desktop-mac');
+    for(const note of document.querySelectorAll('.desktop-setting-note'))if(note.textContent.includes('登录 Windows'))note.textContent='登录 macOS 后自动运行 Meridian';
+    document.querySelector('[data-toggle="edgeHide"]')?.closest('.setting-row').querySelector('p')?.replaceChildren(document.createTextNode('贴边后延时隐藏，鼠标移到原位置边缘即可召回'));
+  }
   document.querySelector('.prototype-tag').textContent='v'+desktop.initial.version;
   document.querySelectorAll('.help-card').forEach(card=>{
     const title=card.querySelector('h2');
@@ -95,7 +101,7 @@
       const startup=document.getElementById('launch-at-login'),minimized=document.getElementById('start-minimized');
       startup.classList.toggle('on',!!next.launchAtLogin);startup.setAttribute('aria-checked',String(!!next.launchAtLogin));startup.disabled=!next.available;
       minimized.classList.toggle('on',!!next.startMinimized);minimized.setAttribute('aria-checked',String(!!next.startMinimized));
-      const status=document.getElementById('desktop-preferences-status');status.classList.toggle('error',!!next.startupBlocked);status.textContent=next.startupBlocked?'Meridian 的启动项已被 Windows 禁用，可重新开启开机启动。':'';
+      const status=document.getElementById('desktop-preferences-status');status.classList.toggle('error',!!next.startupBlocked);status.textContent=next.startupBlocked?(mac?'请在 macOS“系统设置 → 通用 → 登录项”中允许 Meridian。':'Meridian 的启动项已被 Windows 禁用，可重新开启开机启动。'):'';
     }
     async function setPreference(button,patch){
       button.disabled=true;

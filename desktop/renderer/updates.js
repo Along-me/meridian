@@ -23,7 +23,7 @@
     state=next;const automatic=document.getElementById('update-automatic');automatic.classList.toggle('on',!!next.automatic);automatic.setAttribute('aria-checked',String(!!next.automatic));automatic.disabled=!next.supported;
     document.getElementById('update-version').textContent='当前版本 '+next.currentVersion;
     const labels={idle:'可检查是否有新版本',unsupported:'请在安装版中检查更新',checking:'正在检查…',current:'已是最新版本',available:'发现新版本 '+next.availableVersion,downloading:'正在下载 '+Math.round(next.progress)+'%',downloaded:'新版已下载，安装时将退出当前应用',installing:'正在退出并启动安装程序…',error:next.error};
-    const status=document.getElementById('update-status');status.textContent=labels[next.status]||'';status.classList.toggle('error',next.status==='error');
+    const status=document.getElementById('update-status');status.textContent=next.status==='unsupported'&&native?.initial.preferences.platform==='darwin'?'Mac 未签名测试版请通过 GitHub 手动下载更新':labels[next.status]||'';status.classList.toggle('error',next.status==='error');
     const busy=['checking','downloading','installing'].includes(next.status);document.getElementById('update-check').disabled=!next.supported||busy||next.status==='downloaded';
     document.getElementById('update-download').classList.toggle('hidden',next.status!=='available');document.getElementById('update-install').classList.toggle('hidden',next.status!=='downloaded');
     document.getElementById('update-notes-wrap').classList.toggle('hidden',!next.notes);document.getElementById('update-notes').textContent=next.notes;

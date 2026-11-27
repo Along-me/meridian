@@ -57,7 +57,7 @@ function createEdgeHover({getWindow,getCursor,getDock,getArea,isDragging,hide,re
   function reset(){outsideSince=null}
   function tick(){
     const window=getWindow(),dock=getDock();
-    if(!window||window.isDestroyed()||!window.isVisible()||!dock.edge||isDragging()) {reset();return}
+    if(!window||window.isDestroyed()||(!window.isVisible()&&!dock.hidden)||!dock.edge||isDragging()) {reset();return}
     const bounds=dock.hidden?dock.visibleBounds:window.getBounds();
     if(!bounds){reset();return}
     const point=getCursor(),area=getArea(bounds);

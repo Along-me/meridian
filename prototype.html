@@ -1289,7 +1289,7 @@ function syncAssistantPreferences(preferences){
   assistantPreferences={...assistantPreferences,...preferences};assistantPreferences.toolShortcuts=readToolShortcuts(assistantPreferences);
   for(const tool of Object.keys(quickTools)){
     const pending=Object.hasOwn(pendingToolShortcuts,tool),key=pending?pendingToolShortcuts[tool]:assistantPreferences.toolShortcuts[tool],input=$('#quick-launch-'+tool),status=$('[data-shortcut-status="'+tool+'"]');
-    if(input.dataset.shortcutManual!=='true')input.value=key.replace(/Control/g,'Ctrl').replace(/Super/g,'Win').split('+').join(' + ');
+    if(input.dataset.shortcutManual!=='true')input.value=key.replace(/Control/g,'Ctrl').replace(/Super/g,window.meridianDesktop?.initial.preferences.platform==='darwin'?'Cmd':'Win').split('+').join(' + ');
     const error=validateToolShortcut(tool,key)||(!pending&&(shortcutSaveErrors[tool]||assistantPreferences.toolShortcutErrors?.[tool]))||'';
     input.setAttribute('aria-invalid',String(!!error));input.setAttribute('aria-busy',String(pending));
     input.classList.toggle('shortcut-valid',!!key&&!error&&!pending&&(!window.meridianDesktop||assistantPreferences.toolShortcutActive?.[tool]===true));

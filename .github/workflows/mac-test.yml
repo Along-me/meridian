@@ -1,0 +1,59 @@
+name: Mac unsigned test
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: node -e "if(process.arch !== '${{ matrix.arch }}') process.exit(1)"
+      - run: npm ci
+      - run: npm run icons
+      - run: npm test
+      - run: npm run test:desktop
+      - run: npm run dist:mac -- --arch=${{ matrix.arch }}
+      - run: node scripts/verify-mac-build.cjs ${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-${{ matrix.arch }}
+          path: |
+            release/mac-test/*.dmg
+            release/mac-test/*.zip
+          if-no-files-found: error
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: mac-artifacts
+          merge-multiple: true
+      - name: Publish separate Mac prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          tag="mac-test-${version}-${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title "Meridian ${version} · macOS 未签名测试版" --notes-file docs/mac-testing.md mac-artifacts/*.dmg mac-artifacts/*.zip
+          gh release edit "$tag" --draft=false --prerelease --latest=false
